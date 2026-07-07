@@ -317,6 +317,7 @@
         .badge-manager  { background: #1a1a2e; color: #fff; }
         .badge-pengawas { background: var(--spbu-red); color: #fff; }
         .badge-it       { background: #2980b9; color: #fff; }
+        .badge-petugas  { background: #16a085; color: #fff; }
 
         /* Overlay mobile */
         #sidebarOverlay {
@@ -362,8 +363,10 @@
 
     {{-- Navigation --}}
     <div class="sidebar-nav">
+        @php $role = auth()->user()->role; @endphp
 
-        {{-- UMUM: semua role --}}
+        {{-- UMUM: semua kecuali petugas --}}
+        @if(in_array($role, ['it', 'manager', 'pengawas']))
         <div class="nav-section-label">Umum</div>
         <div class="nav-item">
             <a href="{{ route('dashboard') }}"
@@ -377,8 +380,10 @@
                 <i class="bi bi-graph-up-arrow"></i> Laporan Laba & Rugi
             </a>
         </div>
+        @endif
 
-        {{-- OPERASIONAL: semua role --}}
+        {{-- OPERASIONAL: petugas --}}
+        @if(in_array($role, ['it', 'petugas']))
         <div class="nav-section-label mt-2">Operasional</div>
         <div class="nav-item">
             <a href="{{ route('presensi.index') }}"
@@ -387,20 +392,38 @@
             </a>
         </div>
         <div class="nav-item">
-            <a href="{{ route('pengeluaran.index') }}"
-                class="{{ request()->routeIs('pengeluaran.*') ? 'active' : '' }}">
-                <i class="bi bi-cash-stack"></i> Pengeluaran Operasional
-            </a>
-        </div>
-        <div class="nav-item">
             <a href="{{ route('penjualan-bbm.index') }}"
                 class="{{ request()->routeIs('penjualan-bbm.*') ? 'active' : '' }}">
                 <i class="bi bi-fuel-pump"></i> Penjualan BBM
             </a>
         </div>
+        <div class="nav-item">
+            <a href="{{ route('pengajuan-shift.index') }}"
+                class="{{ request()->routeIs('pengajuan-shift.*') ? 'active' : '' }}">
+                <i class="bi bi-arrow-repeat"></i> Pengajuan Shift
+            </a>
+        </div>
+        <div class="nav-item">
+            <a href="{{ route('lembur.index') }}"
+                class="{{ request()->routeIs('lembur.*') ? 'active' : '' }}">
+                <i class="bi bi-clock-history"></i> Pengajuan Lembur
+            </a>
+        </div>
+        @endif
+
+        {{-- OPERASIONAL: pengawas/manager/it --}}
+        @if(in_array($role, ['it', 'manager', 'pengawas']))
+        <div class="nav-section-label mt-2">Operasional</div>
+        <div class="nav-item">
+            <a href="{{ route('pengeluaran.index') }}"
+                class="{{ request()->routeIs('pengeluaran.*') ? 'active' : '' }}">
+                <i class="bi bi-cash-stack"></i> Pengeluaran Operasional
+            </a>
+        </div>
+        @endif
 
         {{-- MASTER DATA: Manager + IT --}}
-        @if(in_array(auth()->user()->role, ['manager', 'it']))
+        @if(in_array($role, ['manager', 'it']))
         <div class="nav-section-label mt-2">Master Data</div>
         <div class="nav-item">
             <a href="{{ route('coa.index') }}"
@@ -411,7 +434,7 @@
         @endif
 
         {{-- TRANSAKSI: Manager + IT --}}
-        @if(in_array(auth()->user()->role, ['manager', 'it']))
+        @if(in_array($role, ['manager', 'it']))
         <div class="nav-section-label mt-2">Transaksi</div>
         <div class="nav-item">
             <a href="{{ route('jurnal-umum.index') }}"
@@ -427,21 +450,36 @@
         </div>
         @endif
 
-        {{-- PENGATURAN: IT full, Manager lihat petugas saja --}}
-        @if(in_array(auth()->user()->role, ['manager', 'it']))
-        <div class="nav-section-label mt-2">Pengaturan</div>
-        @if(auth()->user()->role === 'it')
-        <div class="nav-item">
-            <a href="{{ route('users.index') }}"
-                class="{{ request()->routeIs('users.*') ? 'active' : '' }}">
-                <i class="bi bi-people-fill"></i> Manajemen User
-            </a>
-        </div>
-        @endif
+        {{-- MANAJEMEN: Pengawas + Manager + IT --}}
+        @if(in_array($role, ['manager', 'pengawas', 'it']))
+        <div class="nav-section-label mt-2">Manajemen</div>
         <div class="nav-item">
             <a href="{{ route('petugas.index') }}"
                 class="{{ request()->routeIs('petugas.*') ? 'active' : '' }}">
                 <i class="bi bi-person-badge-fill"></i> Data Petugas
+            </a>
+        </div>
+        <div class="nav-item">
+            <a href="{{ route('jadwal-shift.index') }}"
+                class="{{ request()->routeIs('jadwal-shift.*') ? 'active' : '' }}">
+                <i class="bi bi-calendar-week"></i> Jadwal Shift
+            </a>
+        </div>
+        <div class="nav-item">
+            <a href="{{ route('approval.index') }}"
+                class="{{ request()->routeIs('approval.*') ? 'active' : '' }}">
+                <i class="bi bi-check2-square"></i> Approval
+            </a>
+        </div>
+        @endif
+
+        {{-- PENGATURAN: IT --}}
+        @if($role === 'it')
+        <div class="nav-section-label mt-2">Pengaturan</div>
+        <div class="nav-item">
+            <a href="{{ route('users.index') }}"
+                class="{{ request()->routeIs('users.*') ? 'active' : '' }}">
+                <i class="bi bi-people-fill"></i> Manajemen User
             </a>
         </div>
         @endif
@@ -482,6 +520,7 @@
             $roleBadge = match(auth()->user()->role) {
                 'it'       => 'badge-it',
                 'manager'  => 'badge-manager',
+                'petugas'  => 'badge-petugas',
                 default    => 'badge-pengawas',
             };
         @endphp

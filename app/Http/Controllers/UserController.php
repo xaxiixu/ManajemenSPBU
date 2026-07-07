@@ -24,11 +24,15 @@ class UserController extends Controller
     {
         $this->authorizeIT();
 
-        $request->validate([
-            'name'     => 'required|string|max:100',
-            'email'    => 'required|email|unique:users,email',
-            'password' => 'required|string|min:6|confirmed',
-            'role'     => 'required|in:manager,pengawas,it',
+        $validated = $request->validate([
+            'name'          => 'required|string|max:100',
+            'email'         => 'required|email|unique:users,email',
+            'password'      => 'required|string|min:6|confirmed',
+            'role'          => 'required|in:manager,pengawas,it,petugas',
+            'nik'           => 'nullable|string|max:20|unique:users,nik',
+            'jabatan'       => 'nullable|in:operator,supervisor,kasir,teknisi,lainnya',
+            'no_hp'         => 'nullable|string|max:20',
+            'shift_default' => 'nullable|in:Pagi,Siang,Malam',
         ], [
             'password.confirmed' => 'Konfirmasi password tidak cocok.',
             'email.unique'       => 'Email sudah dipakai.',
@@ -36,11 +40,15 @@ class UserController extends Controller
         ]);
 
         User::create([
-            'name'      => $request->name,
-            'email'     => $request->email,
-            'password'  => Hash::make($request->password),
-            'role'      => $request->role,
-            'is_active' => 1,
+            'name'          => $validated['name'],
+            'email'         => $validated['email'],
+            'password'      => Hash::make($validated['password']),
+            'role'          => $validated['role'],
+            'is_active'     => 1,
+            'nik'           => $validated['nik'] ?? null,
+            'jabatan'       => $validated['jabatan'] ?? null,
+            'no_hp'         => $validated['no_hp'] ?? null,
+            'shift_default' => $validated['shift_default'] ?? null,
         ]);
 
         return redirect()->route('users.index')
@@ -58,20 +66,28 @@ class UserController extends Controller
         $this->authorizeIT();
 
         $request->validate([
-            'name'      => 'required|string|max:100',
-            'email'     => 'required|email|unique:users,email,' . $user->id,
-            'role'      => 'required|in:manager,pengawas,it',
-            'is_active' => 'required|in:0,1',
-            'password'  => 'nullable|string|min:6|confirmed',
+            'name'          => 'required|string|max:100',
+            'email'         => 'required|email|unique:users,email,' . $user->id,
+            'role'          => 'required|in:manager,pengawas,it,petugas',
+            'is_active'     => 'required|in:0,1',
+            'password'      => 'nullable|string|min:6|confirmed',
+            'nik'           => 'nullable|string|max:20|unique:users,nik,' . $user->id,
+            'jabatan'       => 'nullable|in:operator,supervisor,kasir,teknisi,lainnya',
+            'no_hp'         => 'nullable|string|max:20',
+            'shift_default' => 'nullable|in:Pagi,Siang,Malam',
         ], [
             'password.confirmed' => 'Konfirmasi password tidak cocok.',
         ]);
 
         $data = [
-            'name'      => $request->name,
-            'email'     => $request->email,
-            'role'      => $request->role,
-            'is_active' => $request->is_active,
+            'name'          => $request->name,
+            'email'         => $request->email,
+            'role'          => $request->role,
+            'is_active'     => $request->is_active,
+            'nik'           => $request->nik,
+            'jabatan'       => $request->jabatan,
+            'no_hp'         => $request->no_hp,
+            'shift_default' => $request->shift_default,
         ];
 
         if ($request->filled('password')) {

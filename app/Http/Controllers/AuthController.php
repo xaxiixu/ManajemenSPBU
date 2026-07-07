@@ -30,7 +30,9 @@ class AuthController extends Controller
                 return back()->withErrors(['email' => 'Akun Anda dinonaktifkan. Hubungi manager.']);
             }
 
-            return redirect()->intended(route('dashboard'));
+            $home = auth()->user()->role === 'petugas' ? route('presensi.index') : route('dashboard');
+
+            return redirect()->intended($home);
         }
 
         return back()

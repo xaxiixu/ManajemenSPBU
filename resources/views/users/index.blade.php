@@ -50,6 +50,7 @@
                                 'it'       => 'bg-primary',
                                 'manager'  => 'bg-dark',
                                 'pengawas' => 'bg-danger',
+                                'petugas'  => 'bg-info',
                                 default    => 'bg-secondary',
                             };
                         @endphp
@@ -106,7 +107,12 @@
                     <i class="bi bi-person-x-fill text-danger" style="font-size:2rem;"></i>
                 </div>
                 <h6 class="mb-1">Hapus user ini?</h6>
-                <p class="text-muted mb-0">User <strong id="namaUser"></strong> akan dihapus permanen.</p>
+                <p class="text-muted mb-2">User <strong id="namaUser"></strong> akan dihapus permanen.</p>
+                <div class="alert alert-warning text-start small mb-0">
+                    <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                    Riwayat presensi, pengajuan shift, dan lembur milik user ini akan tetap tersimpan
+                    (ditampilkan sebagai "Petugas dihapus"), tapi akun login &amp; datanya tidak bisa dikembalikan.
+                </div>
             </div>
             <div class="modal-footer border-0 pt-0 justify-content-center gap-2">
                 <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Batal</button>

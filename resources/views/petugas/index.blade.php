@@ -6,16 +6,41 @@
 <div class="page-header d-flex justify-content-between align-items-center">
     <div>
         <h2><i class="bi bi-person-badge-fill me-2 text-danger"></i>Data Petugas</h2>
-        <p>Kelola data karyawan dan operator SPBU</p>
+        <p>Daftar petugas dan kehadiran per shift hari ini</p>
     </div>
     @if(auth()->user()->role === 'it')
-    <a href="{{ route('petugas.create') }}" class="btn btn-danger">
-        <i class="bi bi-plus-lg me-1"></i> Tambah Petugas
+    <a href="{{ route('users.create') }}" class="btn btn-danger">
+        <i class="bi bi-plus-lg me-1"></i> Tambah Akun Petugas
     </a>
     @endif
 </div>
 
+{{-- Hadir per shift hari ini --}}
+<div class="row g-3 mb-3">
+    @foreach(['Pagi', 'Siang', 'Malam'] as $shift)
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                Shift {{ $shift }}
+                <span class="badge bg-success">{{ ($hadirHariIni[$shift] ?? collect())->count() }} hadir</span>
+            </div>
+            <div class="card-body">
+                @forelse(($hadirHariIni[$shift] ?? collect()) as $absen)
+                <div class="d-flex justify-content-between border-bottom py-1">
+                    <span>{{ $absen->user->name ?? 'Petugas dihapus' }}</span>
+                    <small class="text-muted">{{ $absen->jam_masuk }}</small>
+                </div>
+                @empty
+                <p class="text-muted small mb-0">Belum ada yang hadir.</p>
+                @endforelse
+            </div>
+        </div>
+    </div>
+    @endforeach
+</div>
+
 <div class="card">
+    <div class="card-header">Daftar Petugas</div>
     <div class="card-body p-0">
         <table class="table table-hover mb-0">
             <thead class="table-light">
@@ -26,44 +51,37 @@
                     <th>Shift Default</th>
                     <th>No. HP</th>
                     <th>Status</th>
-                    @if(auth()->user()->role === 'it')
                     <th>Aksi</th>
-                    @endif
                 </tr>
             </thead>
             <tbody>
-                @forelse($data as $item)
+                @forelse($petugas as $item)
                 <tr>
-                    <td><strong>{{ $item->nama }}</strong></td>
+                    <td><strong>{{ $item->name }}</strong></td>
                     <td>{{ $item->nik ?? '-' }}</td>
-                    <td><span class="badge bg-secondary text-capitalize">{{ $item->jabatan }}</span></td>
+                    <td><span class="badge bg-secondary text-capitalize">{{ $item->jabatan ?? '-' }}</span></td>
                     <td>{{ $item->shift_default ?? '-' }}</td>
                     <td>{{ $item->no_hp ?? '-' }}</td>
                     <td>
-                        @if($item->is_aktif)
+                        @if($item->is_active)
                             <span class="badge bg-success">Aktif</span>
                         @else
                             <span class="badge bg-danger">Nonaktif</span>
                         @endif
                     </td>
-                    @if(auth()->user()->role === 'it')
                     <td>
-                        <a href="{{ route('petugas.edit', $item->id) }}" class="btn btn-sm btn-outline-primary">
-                            <i class="bi bi-pencil"></i> Edit
+                        <a href="{{ route('petugas.show', $item->id) }}" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-eye"></i> Detail
                         </a>
-                        <button type="button" class="btn btn-sm btn-outline-danger"
-                            onclick="confirmDelete({{ $item->id }}, '{{ $item->nama }}')">
-                            <i class="bi bi-trash"></i>
+                        <button type="button" class="btn btn-sm btn-outline-warning"
+                            onclick="bukaModalAbsensi({{ $item->id }}, '{{ $item->name }}')">
+                            <i class="bi bi-calendar-x"></i> Tandai Absen
                         </button>
                     </td>
-                    @endif
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="{{ auth()->user()->role === 'it' ? 7 : 6 }}"
-                        class="text-center py-4 text-muted">
-                        Belum ada data petugas.
-                    </td>
+                    <td colspan="7" class="text-center py-4 text-muted">Belum ada data petugas.</td>
                 </tr>
                 @endforelse
             </tbody>
@@ -71,44 +89,50 @@
     </div>
 </div>
 
-@if(auth()->user()->role === 'it')
-<div class="modal fade" id="modalHapus" tabindex="-1">
+{{-- Modal tandai sakit/izin/tidak hadir --}}
+<div class="modal fade" id="modalAbsensi" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header border-0 pb-0">
-                <h5 class="modal-title text-danger">
-                    <i class="bi bi-exclamation-triangle-fill me-2"></i>Konfirmasi Hapus
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body text-center py-4">
-                <div style="width:70px;height:70px;background:#fdf0ef;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 1rem;">
-                    <i class="bi bi-person-x-fill text-danger" style="font-size:2rem;"></i>
+            <form id="formAbsensi" method="POST">
+                @csrf
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title">Tandai Presensi — <span id="namaPetugasModal"></span></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <h6 class="mb-1">Hapus petugas ini?</h6>
-                <p class="text-muted mb-0">Petugas <strong id="namaPetugas"></strong> akan dihapus permanen.</p>
-            </div>
-            <div class="modal-footer border-0 pt-0 justify-content-center gap-2">
-                <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Batal</button>
-                <form id="formHapus" method="POST">
-                    @csrf @method('DELETE')
-                    <button type="submit" class="btn btn-danger px-4">
-                        <i class="bi bi-trash me-1"></i>Ya, Hapus
-                    </button>
-                </form>
-            </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Tanggal</label>
+                        <input type="date" name="tanggal" class="form-control" value="{{ date('Y-m-d') }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Status</label>
+                        <select name="status_hadir" class="form-select" required>
+                            <option value="sakit">Sakit</option>
+                            <option value="izin">Izin</option>
+                            <option value="tidak_hadir">Tidak Hadir</option>
+                        </select>
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label fw-semibold">Keterangan <span class="text-muted fw-normal">(opsional)</span></label>
+                        <input type="text" name="keterangan" class="form-control">
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-danger">Simpan</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
-@endif
 @endsection
 
 @push('scripts')
 <script>
-function confirmDelete(id, nama) {
-    document.getElementById('namaPetugas').textContent = nama;
-    document.getElementById('formHapus').action = '/petugas/' + id;
-    new bootstrap.Modal(document.getElementById('modalHapus')).show();
+function bukaModalAbsensi(id, nama) {
+    document.getElementById('namaPetugasModal').textContent = nama;
+    document.getElementById('formAbsensi').action = '/petugas/' + id + '/mark-absensi';
+    new bootstrap.Modal(document.getElementById('modalAbsensi')).show();
 }
 </script>
 @endpush

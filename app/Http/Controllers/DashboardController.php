@@ -57,7 +57,7 @@ class DashboardController extends Controller
             ->get();
 
         // ── Transaksi terbaru ─────────────────────────
-        $transaksiTerbaru = PenjualanBbm::with('absensis.petugas')
+        $transaksiTerbaru = PenjualanBbm::with('absensis.user')
             ->latest('tanggal')->take(5)->get();
 
         return view('dashboard', compact(

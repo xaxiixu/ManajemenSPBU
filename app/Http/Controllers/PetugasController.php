@@ -2,73 +2,110 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Petugas;
+use App\Models\Absensis;
+use App\Models\ShiftMaster;
+use App\Models\User;
 use Illuminate\Http\Request;
 
 class PetugasController extends Controller
 {
     public function index()
     {
-        $data = Petugas::orderBy('nama')->get();
-        return view('petugas.index', compact('data'));
+        $petugas = User::where('role', 'petugas')->orderBy('name')->get();
+
+        $hadirHariIni = Absensis::with('user')
+            ->whereDate('tanggal', today())
+            ->where('status_hadir', 'hadir')
+            ->get()
+            ->groupBy('shift');
+
+        return view('petugas.index', compact('petugas', 'hadirHariIni'));
     }
 
-    public function create()
+    public function show($id)
     {
-        return view('petugas.create');
+        $petugas = User::where('role', 'petugas')->findOrFail($id);
+
+        $riwayat = Absensis::where('user_id', $id)
+            ->latest('tanggal')
+            ->take(30)
+            ->get();
+
+        return view('petugas.show', compact('petugas', 'riwayat'));
     }
 
-    public function store(Request $request)
+    // Pengawas/Manager/IT input status sakit/izin/tidak_hadir untuk petugas
+    // (status 'hadir' hanya lewat self-service presensi milik petugas sendiri)
+    public function markAbsensi(Request $request, $id)
     {
-        $request->validate([
-            'nama'          => 'required|string|max:100',
-            'nik'           => 'nullable|string|max:20|unique:petugas,nik',
-            'jabatan'       => 'required|in:operator,supervisor,kasir,teknisi,lainnya',
-            'shift_default' => 'nullable|in:Pagi,Siang,Malam',
-            'no_hp'         => 'nullable|string|max:20',
+        $petugas = User::where('role', 'petugas')->findOrFail($id);
+
+        $validated = $request->validate([
+            'tanggal'      => 'required|date',
+            'status_hadir' => 'required|in:sakit,izin,tidak_hadir',
+            'keterangan'   => 'nullable|string|max:255',
         ]);
 
-        Petugas::create($request->only([
-            'nama', 'nik', 'jabatan', 'shift_default', 'no_hp'
-        ]) + ['is_aktif' => 1]);
+        if (Absensis::where('user_id', $id)->whereDate('tanggal', $validated['tanggal'])->exists()) {
+            return back()
+                ->withErrors(['tanggal' => 'Sudah ada data presensi untuk petugas ini pada tanggal tersebut.'])
+                ->withInput();
+        }
 
-        return redirect()->route('petugas.index')
-            ->with('success', 'Data petugas berhasil ditambahkan.');
-    }
-
-    public function edit($id)
-    {
-        $petugas = Petugas::findOrFail($id);
-        return view('petugas.edit', compact('petugas'));
-    }
-
-    public function update(Request $request, $id)
-    {
-        $petugas = Petugas::findOrFail($id);
-
-        $request->validate([
-            'nama'          => 'required|string|max:100',
-            'nik'           => 'nullable|string|max:20|unique:petugas,nik,' . $id,
-            'jabatan'       => 'required|in:operator,supervisor,kasir,teknisi,lainnya',
-            'shift_default' => 'nullable|in:Pagi,Siang,Malam',
-            'no_hp'         => 'nullable|string|max:20',
-            'is_aktif'      => 'required|in:0,1',
+        Absensis::create([
+            'user_id'      => $petugas->id,
+            'tanggal'      => $validated['tanggal'],
+            'shift'        => $petugas->shift_default ?? 'Pagi',
+            'status_hadir' => $validated['status_hadir'],
+            'keterangan'   => $validated['keterangan'],
+            'dicatat_oleh' => auth()->id(),
         ]);
 
-        $petugas->update($request->only([
-            'nama', 'nik', 'jabatan', 'shift_default', 'no_hp', 'is_aktif'
-        ]));
-
         return redirect()->route('petugas.index')
-            ->with('success', 'Data petugas berhasil diupdate.');
+            ->with('success', 'Status presensi petugas berhasil dicatat.');
     }
 
-    public function destroy($id)
+    // Pengawas/Manager/IT: koreksi record absensi (termasuk force-close sesi yang nyangkut)
+    public function updateAbsensi(Request $request, Absensis $absensi)
     {
-        $petugas = Petugas::findOrFail($id);
-        $petugas->delete();
+        $validated = $request->validate([
+            'status_hadir' => 'required|in:hadir,sakit,izin,tidak_hadir',
+            'jam_masuk'    => 'nullable|date_format:H:i',
+            'jam_keluar'   => 'nullable|date_format:H:i',
+            'keterangan'   => 'nullable|string|max:255',
+        ]);
 
-        return redirect()->route('petugas.index')
-            ->with('success', 'Data petugas berhasil dihapus.');
+        $jamMasuk = $validated['jam_masuk'] ? $validated['jam_masuk'] . ':00' : null;
+        $jamKeluar = $validated['jam_keluar'] ? $validated['jam_keluar'] . ':00' : null;
+
+        $menitTelat = 0;
+        if ($jamMasuk) {
+            $shiftMaster = ShiftMaster::where('shift', $absensi->shift)->first();
+            if ($shiftMaster) {
+                $menitTelat = Absensis::hitungMenitTelat($shiftMaster, $absensi->tanggal, $jamMasuk);
+            }
+        }
+
+        $absensi->update([
+            'status_hadir' => $validated['status_hadir'],
+            'jam_masuk'    => $jamMasuk,
+            'jam_keluar'   => $jamKeluar,
+            'menit_telat'  => $menitTelat,
+            'keterangan'   => $validated['keterangan'] ?? null,
+        ]);
+
+        return redirect()->route('petugas.show', $absensi->user_id)
+            ->with('success', 'Data presensi berhasil diperbarui.');
+    }
+
+    // Pengawas/Manager/IT: hapus record absensi yang salah
+    public function destroyAbsensi(Absensis $absensi)
+    {
+        $userId = $absensi->user_id;
+
+        $absensi->delete();
+
+        return redirect()->route('petugas.show', $userId)
+            ->with('success', 'Data presensi berhasil dihapus.');
     }
 }

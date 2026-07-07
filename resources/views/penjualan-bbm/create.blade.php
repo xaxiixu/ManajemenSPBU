@@ -30,16 +30,6 @@
                         <option value="Malam">Malam</option>
                     </select>
                 </div>
-                <div class="mb-3">
-                    <label class="form-label fw-semibold">Operator Bertugas</label>
-                    <select name="absensis_id" class="form-select">
-                        <option value="">-- Pilih Operator (opsional) --</option>
-                        @foreach($absensis as $a)
-                        <option value="{{ $a->id }}">{{ $a->petugas->nama }} ({{ $a->shift }})</option>
-                        @endforeach
-                    </select>
-                    <small class="text-muted">Menampilkan petugas hadir hari ini</small>
-                </div>
                 <div class="row">
                     <div class="col-6 mb-3">
                         <label class="form-label fw-semibold">Pulau</label>

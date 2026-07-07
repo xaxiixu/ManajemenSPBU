@@ -22,18 +22,14 @@ class PenjualanBbmController extends Controller
 
     public function create()
     {
-        $absensis = Absensis::with('petugas')
-            ->whereDate('tanggal', today())
-            ->where('status_hadir', 'hadir')
-            ->get();
+        return view('penjualan-bbm.create');
+    }
 
-        return view('penjualan-bbm.create', compact('absensis'));
-    }public function store(Request $request)
+    public function store(Request $request)
     {
         $request->validate([
             'tanggal'          => 'required|date',
             'shift'            => 'required|in:Pagi,Siang,Malam',
-            'absensis_id'      => 'nullable|exists:absensis,id',
             'pulau'            => 'required|string|max:10',
             'nozzle'           => 'required|string|max:10',
             'jenis_bbm'        => 'required|in:Pertalite,Pertamax,Solar',
@@ -52,10 +48,17 @@ class PenjualanBbmController extends Controller
         $fotoAwal  = $request->file('foto_meter_awal')->store('penjualan/meter', 'public');
         $fotoAkhir = $request->file('foto_meter_akhir')->store('penjualan/meter', 'public');
 
+        // Operator = petugas yang sedang login; absensis_id diambil dari sesi
+        // presensinya pada tanggal & shift yang sama (kalau ada)
+        $absensisId = Absensis::where('user_id', auth()->id())
+            ->whereDate('tanggal', $request->tanggal)
+            ->where('shift', $request->shift)
+            ->value('id');
+
         $penjualan = PenjualanBbm::create([
             'tanggal'           => $request->tanggal,
             'shift'             => $request->shift,
-            'absensis_id'       => $request->absensis_id,
+            'absensis_id'       => $absensisId,
             'pulau'             => $request->pulau,
             'nozzle'            => $request->nozzle,
             'jenis_bbm'         => $request->jenis_bbm,
@@ -82,6 +85,10 @@ class PenjualanBbmController extends Controller
 
     public function destroy(PenjualanBbm $penjualanBbm)
     {
+        if ($penjualanBbm->dicatat_oleh !== auth()->id() && auth()->user()->role !== 'it') {
+            abort(403, 'Anda hanya bisa menghapus data penjualan milik sendiri.');
+        }
+
         if ($penjualanBbm->foto_meter_awal) {
             Storage::disk('public')->delete($penjualanBbm->foto_meter_awal);
         }

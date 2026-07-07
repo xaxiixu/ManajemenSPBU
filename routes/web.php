@@ -12,6 +12,10 @@ use App\Http\Controllers\BukuBesarController;
 use App\Http\Controllers\LaporanLabaRugiController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\PetugasController;
+use App\Http\Controllers\JadwalShiftController;
+use App\Http\Controllers\PengajuanShiftController;
+use App\Http\Controllers\LemburController;
+use App\Http\Controllers\ApprovalController;
 
 // ── Auth ─────────────────────────────────────────────
 Route::middleware('guest')->group(function () {
@@ -25,27 +29,72 @@ Route::post('/logout', [AuthController::class, 'logout'])
 // ── Authenticated ─────────────────────────────────────
 Route::middleware('auth')->group(function () {
 
-    Route::get('/', fn() => redirect()->route('dashboard'));
-
-    // ── Semua role ────────────────────────────────────
-    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-    Route::get('/laporan-laba-rugi', [LaporanLabaRugiController::class, 'index'])->name('laporan-laba-rugi.index');
-
-    // ── Pengawas: input operasional ───────────────────
-    Route::middleware('role:pengawas')->group(function () {
-        Route::resource('presensi', PresensiController::class)->except(['index', 'show']);
-        Route::resource('pengeluaran', PengeluaranController::class)->except(['index', 'show']);
-        Route::resource('penjualan-bbm', PenjualanBbmController::class)->except(['index', 'show']);
+    Route::get('/', function () {
+        if (auth()->user()->role === 'petugas') {
+            return redirect()->route('presensi.index');
+        }
+        return redirect()->route('dashboard');
     });
 
-    // ── Semua role: lihat operasional ─────────────────
-    Route::middleware('role:pengawas,manager')->group(function () {
+    // ── Dashboard & Laporan: semua kecuali petugas ─────
+    Route::middleware('role:manager,pengawas')->group(function () {
+        Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+        Route::get('/laporan-laba-rugi', [LaporanLabaRugiController::class, 'index'])->name('laporan-laba-rugi.index');
+    });
+
+    // ── Petugas: presensi self-service ─────────────────
+    Route::middleware('role:petugas')->group(function () {
         Route::get('/presensi', [PresensiController::class, 'index'])->name('presensi.index');
-        Route::get('/presensi/{presensi}', [PresensiController::class, 'show'])->name('presensi.show');
+        Route::post('/presensi/absen-masuk', [PresensiController::class, 'absenMasuk'])->name('presensi.absen-masuk');
+        Route::post('/presensi/absen-keluar', [PresensiController::class, 'absenKeluar'])->name('presensi.absen-keluar');
+
+        // Pengajuan shift & lembur: petugas ajukan
+        Route::get('/pengajuan-shift', [PengajuanShiftController::class, 'index'])->name('pengajuan-shift.index');
+        Route::post('/pengajuan-shift', [PengajuanShiftController::class, 'store'])->name('pengajuan-shift.store');
+        Route::get('/lembur', [LemburController::class, 'index'])->name('lembur.index');
+        Route::post('/lembur', [LemburController::class, 'store'])->name('lembur.store');
+    });
+
+    // ── Petugas: input penjualan BBM milik sendiri ────
+    Route::middleware('role:petugas')->group(function () {
+        Route::resource('penjualan-bbm', PenjualanBbmController::class)
+            ->except(['index', 'show', 'edit', 'update']);
+    });
+
+    // ── Pengawas: input pengeluaran operasional ───────
+    Route::middleware('role:pengawas')->group(function () {
+        Route::resource('pengeluaran', PengeluaranController::class)->except(['index', 'show']);
+    });
+
+    // ── Lihat pengeluaran: pengawas, manager (bukan petugas) ─
+    Route::middleware('role:pengawas,manager')->group(function () {
         Route::get('/pengeluaran', [PengeluaranController::class, 'index'])->name('pengeluaran.index');
         Route::get('/pengeluaran/{pengeluaran}', [PengeluaranController::class, 'show'])->name('pengeluaran.show');
+    });
+
+    // ── Lihat penjualan BBM: pengawas, manager, petugas ─
+    Route::middleware('role:pengawas,manager,petugas')->group(function () {
         Route::get('/penjualan-bbm', [PenjualanBbmController::class, 'index'])->name('penjualan-bbm.index');
         Route::get('/penjualan-bbm/{penjualanBbm}', [PenjualanBbmController::class, 'show'])->name('penjualan-bbm.show');
+    });
+
+    // ── Pengawas + Manager: data petugas, jadwal shift, approval ─
+    Route::middleware('role:pengawas,manager')->group(function () {
+        Route::get('/petugas', [PetugasController::class, 'index'])->name('petugas.index');
+        Route::get('/petugas/{id}', [PetugasController::class, 'show'])->name('petugas.show');
+        Route::post('/petugas/{id}/mark-absensi', [PetugasController::class, 'markAbsensi'])->name('petugas.mark-absensi');
+        Route::put('/absensi/{absensi}', [PetugasController::class, 'updateAbsensi'])->name('absensi.update');
+        Route::delete('/absensi/{absensi}', [PetugasController::class, 'destroyAbsensi'])->name('absensi.destroy');
+
+        Route::get('/jadwal-shift', [JadwalShiftController::class, 'index'])->name('jadwal-shift.index');
+        Route::put('/jadwal-shift/shift-master/{shiftMaster}', [JadwalShiftController::class, 'updateJamShift'])->name('jadwal-shift.update-jam');
+        Route::put('/jadwal-shift/petugas/{petugas}', [JadwalShiftController::class, 'updateShiftDefault'])->name('jadwal-shift.update-default');
+
+        Route::get('/approval', [ApprovalController::class, 'index'])->name('approval.index');
+        Route::post('/pengajuan-shift/{pengajuanShift}/approve', [PengajuanShiftController::class, 'approve'])->name('pengajuan-shift.approve');
+        Route::post('/pengajuan-shift/{pengajuanShift}/reject', [PengajuanShiftController::class, 'reject'])->name('pengajuan-shift.reject');
+        Route::post('/lembur/{lembur}/approve', [LemburController::class, 'approve'])->name('lembur.approve');
+        Route::post('/lembur/{lembur}/reject', [LemburController::class, 'reject'])->name('lembur.reject');
     });
 
     // ── Manager + IT: akuntansi & master data ─────────
@@ -56,27 +105,16 @@ Route::middleware('auth')->group(function () {
         // Jurnal & Buku Besar read only
         Route::resource('jurnal-umum', JurnalUmumController::class)->only(['index', 'show']);
         Route::resource('buku-besar', BukuBesarController::class)->only(['index', 'show']);
-
-        // Data Petugas: lihat saja
-        Route::get('/petugas', [PetugasController::class, 'index'])->name('petugas.index');
-        Route::get('/petugas/{id}', [PetugasController::class, 'show'])->name('petugas.show');
     });
 
     // ── IT only: pengaturan & manajemen user ──────────
     Route::middleware('role:it')->group(function () {
-        // Manajemen User
+        // Manajemen User (termasuk buat akun petugas)
         Route::get('/users', [UserController::class, 'index'])->name('users.index');
         Route::get('/users/create', [UserController::class, 'create'])->name('users.create');
         Route::post('/users', [UserController::class, 'store'])->name('users.store');
         Route::get('/users/{user}/edit', [UserController::class, 'edit'])->name('users.edit');
         Route::put('/users/{user}', [UserController::class, 'update'])->name('users.update');
         Route::delete('/users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
-
-        // Data Petugas full
-        Route::get('/petugas/create', [PetugasController::class, 'create'])->name('petugas.create');
-        Route::post('/petugas', [PetugasController::class, 'store'])->name('petugas.store');
-        Route::get('/petugas/{id}/edit', [PetugasController::class, 'edit'])->name('petugas.edit');
-        Route::put('/petugas/{id}', [PetugasController::class, 'update'])->name('petugas.update');
-        Route::delete('/petugas/{id}', [PetugasController::class, 'destroy'])->name('petugas.destroy');
     });
 });

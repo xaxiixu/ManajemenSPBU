@@ -8,7 +8,7 @@
         <h2><i class="bi bi-fuel-pump me-2 text-danger"></i>Penjualan BBM</h2>
         <p>Data penjualan bahan bakar minyak</p>
     </div>
-    @if(in_array(auth()->user()->role, ['pengawas', 'it']))
+    @if(in_array(auth()->user()->role, ['petugas', 'it']))
     <a href="{{ route('penjualan-bbm.create') }}" class="btn btn-danger">
         <i class="bi bi-plus-lg me-1"></i> Tambah Data
     </a>
@@ -26,9 +26,7 @@
                     <th>Jenis BBM</th>
                     <th>Liter Terjual</th>
                     <th>Total Penjualan</th>
-                    @if(in_array(auth()->user()->role, ['pengawas', 'it']))
                     <th>Aksi</th>
-                    @endif
                 </tr>
             </thead>
             <tbody>
@@ -40,11 +38,11 @@
                     <td>{{ $item->jenis_bbm }}</td>
                     <td>{{ number_format($item->liter_terjual) }} L</td>
                     <td>Rp {{ number_format($item->total_penjualan) }}</td>
-                    @if(in_array(auth()->user()->role, ['pengawas', 'it']))
                     <td>
                         <a href="{{ route('penjualan-bbm.show', $item) }}" class="btn btn-sm btn-outline-primary">
                             <i class="bi bi-eye"></i> Detail
                         </a>
+                        @if($item->dicatat_oleh === auth()->id() || auth()->user()->role === 'it')
                         <form action="{{ route('penjualan-bbm.destroy', $item) }}" method="POST" class="d-inline"
                             onsubmit="return confirm('Hapus data ini?')">
                             @csrf @method('DELETE')
@@ -52,8 +50,8 @@
                                 <i class="bi bi-trash"></i>
                             </button>
                         </form>
+                        @endif
                     </td>
-                    @endif
                 </tr>
                 @empty
                 <tr>

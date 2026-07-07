@@ -3,119 +3,100 @@
 namespace App\Http\Controllers;
 
 use App\Models\Absensis;
-use App\Models\Petugas;
+use App\Models\ShiftMaster;
 use Illuminate\Http\Request;
 
 class PresensiController extends Controller
 {
-    public function index(Request $request)
+    // Halaman self-service: status hari ini + riwayat milik sendiri
+    public function index()
     {
-        $bulan  = $request->bulan;
-        $shift  = $request->shift;
+        $userId = auth()->id();
 
-        if ($bulan) {
-            // Filter pakai bulan
-            $dari   = \Carbon\Carbon::parse($bulan . '-01')->startOfMonth()->toDateString();
-            $sampai = \Carbon\Carbon::parse($bulan . '-01')->endOfMonth()->toDateString();
-        } else {
-            // Filter pakai range tanggal
-            $dari   = $request->dari   ?? today()->toDateString();
-            $sampai = $request->sampai ?? today()->toDateString();
-        }
+        $sesiTerbuka = Absensis::where('user_id', $userId)
+            ->where('status_hadir', 'hadir')
+            ->whereNull('jam_keluar')
+            ->latest('tanggal')
+            ->first();
 
-        $query = Absensis::with('petugas')
-            ->whereBetween('tanggal', [$dari, $sampai]);
+        $absenHariIni = Absensis::where('user_id', $userId)
+            ->whereDate('tanggal', today())
+            ->first();
 
-        if ($shift) {
-            $query->where('shift', $shift);
-        }
+        $riwayat = Absensis::where('user_id', $userId)
+            ->latest('tanggal')
+            ->take(30)
+            ->get();
 
-        $data = $query->orderBy('tanggal')->orderBy('shift')->get();
+        $shiftMaster = ShiftMaster::orderBy('jam_mulai')->get();
 
-        $ringkasan = [
-            'hadir'       => $data->where('status_hadir', 'hadir')->count(),
-            'sakit'       => $data->where('status_hadir', 'sakit')->count(),
-            'izin'        => $data->where('status_hadir', 'izin')->count(),
-            'tidak_hadir' => $data->where('status_hadir', 'tidak_hadir')->count(),
-        ];
-
-        return view('presensi.index', compact('data', 'dari', 'sampai', 'bulan', 'shift', 'ringkasan'));
+        return view('presensi.index', compact('sesiTerbuka', 'absenHariIni', 'riwayat', 'shiftMaster'));
     }
 
-    public function create()
+    public function absenMasuk(Request $request)
     {
-        $petugas = Petugas::where('is_aktif', 1)->orderBy('nama')->get();
-        return view('presensi.create', compact('petugas'));
-    }
+        $userId = auth()->id();
 
-    public function store(Request $request)
-    {
-        $request->validate([
-            'petugas_id'   => 'required|exists:petugas,id',
-            'tanggal'      => 'required|date',
-            'shift'        => 'required|in:Pagi,Siang,Malam',
-            'status_hadir' => 'required|in:hadir,sakit,izin,tidak_hadir',
-            'jam_masuk'    => 'nullable|date_format:H:i',
-            'jam_keluar'   => 'nullable|date_format:H:i',
-            'keterangan'   => 'nullable|string|max:255',
+        $validated = $request->validate([
+            'shift' => 'required|in:Pagi,Siang,Malam',
         ]);
 
-        $exists = Absensis::where('petugas_id', $request->petugas_id)
-            ->whereDate('tanggal', $request->tanggal)
-            ->where('shift', $request->shift)
-            ->exists();
+        $sesiTerbuka = Absensis::where('user_id', $userId)
+            ->where('status_hadir', 'hadir')
+            ->whereNull('jam_keluar')
+            ->latest('tanggal')
+            ->first();
 
-        if ($exists) {
-            return back()
-                ->withErrors(['petugas_id' => 'Petugas ini sudah diinput untuk shift dan tanggal yang sama.'])
-                ->withInput();
+        if ($sesiTerbuka) {
+            return back()->withErrors(['shift' =>
+                'Anda masih punya sesi absensi yang belum di-absen keluar pada tanggal '
+                . $sesiTerbuka->tanggal->format('d/m/Y')
+                . '. Hubungi pengawas untuk menutup sesi tersebut.'
+            ]);
+        }
+
+        if (Absensis::where('user_id', $userId)->whereDate('tanggal', today())->exists()) {
+            return back()->withErrors(['shift' => 'Anda sudah melakukan presensi hari ini.']);
+        }
+
+        $jamMasuk = now();
+        $menitTelat = 0;
+        $shiftMaster = ShiftMaster::where('shift', $validated['shift'])->first();
+
+        if ($shiftMaster) {
+            $menitTelat = Absensis::hitungMenitTelat($shiftMaster, $jamMasuk->copy()->startOfDay(), $jamMasuk->format('H:i:s'));
         }
 
         Absensis::create([
-            'petugas_id'   => $request->petugas_id,
-            'tanggal'      => $request->tanggal,
-            'shift'        => $request->shift,
-            'status_hadir' => $request->status_hadir,
-            'jam_masuk'    => $request->jam_masuk,
-            'jam_keluar'   => $request->jam_keluar,
-            'keterangan'   => $request->keterangan,
-            'dicatat_oleh' => auth()->id(),
+            'user_id'      => $userId,
+            'tanggal'      => today(),
+            'shift'        => $validated['shift'],
+            'status_hadir' => 'hadir',
+            'jam_masuk'    => $jamMasuk->format('H:i:s'),
+            'menit_telat'  => $menitTelat,
+            'keterangan'   => $menitTelat > 0 ? "Telat {$menitTelat} menit" : null,
+            'dicatat_oleh' => $userId,
         ]);
 
-        return redirect()->route('presensi.index')
-            ->with('success', 'Data presensi berhasil disimpan.');
+        return redirect()->route('presensi.index')->with('success', 'Absen masuk berhasil dicatat.');
     }
 
-    public function edit(Absensis $presensi)
+    public function absenKeluar()
     {
-        $petugas = Petugas::where('is_aktif', 1)->orderBy('nama')->get();
-        return view('presensi.edit', compact('presensi', 'petugas'));
-    }
+        $userId = auth()->id();
 
-    public function update(Request $request, Absensis $presensi)
-    {
-        $request->validate([
-            'status_hadir' => 'required|in:hadir,sakit,izin,tidak_hadir',
-            'jam_masuk'    => 'nullable|date_format:H:i',
-            'jam_keluar'   => 'nullable|date_format:H:i',
-            'keterangan'   => 'nullable|string|max:255',
-        ]);
+        $sesi = Absensis::where('user_id', $userId)
+            ->where('status_hadir', 'hadir')
+            ->whereNull('jam_keluar')
+            ->latest('tanggal')
+            ->first();
 
-        $presensi->update([
-            'status_hadir' => $request->status_hadir,
-            'jam_masuk'    => $request->jam_masuk,
-            'jam_keluar'   => $request->jam_keluar,
-            'keterangan'   => $request->keterangan,
-        ]);
+        if (!$sesi) {
+            return back()->withErrors(['presensi' => 'Tidak ada sesi absen masuk yang terbuka.']);
+        }
 
-        return redirect()->route('presensi.index')
-            ->with('success', 'Data presensi berhasil diupdate.');
-    }
+        $sesi->update(['jam_keluar' => now()->format('H:i:s')]);
 
-    public function destroy(Absensis $presensi)
-    {
-        $presensi->delete();
-        return redirect()->route('presensi.index')
-            ->with('success', 'Data presensi berhasil dihapus.');
+        return redirect()->route('presensi.index')->with('success', 'Absen keluar berhasil dicatat.');
     }
 }

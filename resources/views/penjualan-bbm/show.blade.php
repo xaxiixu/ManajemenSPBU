@@ -25,7 +25,7 @@
                     <tr><td class="text-muted">Pulau</td><td>{{ $penjualanBbm->pulau }}</td></tr>
                     <tr><td class="text-muted">Nozzle</td><td>{{ $penjualanBbm->nozzle }}</td></tr>
                     <tr><td class="text-muted">Jenis BBM</td><td>{{ $penjualanBbm->jenis_bbm }}</td></tr>
-                    <tr><td class="text-muted">Operator</td><td>{{ $penjualanBbm->absensis->petugas->nama ?? '-' }}</td></tr>
+                    <tr><td class="text-muted">Operator</td><td>{{ $penjualanBbm->absensis->user->name ?? '-' }}</td></tr>
                     <tr><td class="text-muted">Catatan</td><td>{{ $penjualanBbm->catatan ?? '-' }}</td></tr>
                 </table>
             </div>
