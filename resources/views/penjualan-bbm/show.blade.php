@@ -23,8 +23,7 @@
                     <tr><td class="text-muted" width="40%">Tanggal</td><td>{{ $penjualanBbm->tanggal->format('d/m/Y') }}</td></tr>
                     <tr><td class="text-muted">Shift</td><td><span class="badge bg-secondary">{{ $penjualanBbm->shift }}</span></td></tr>
                     <tr><td class="text-muted">Pulau</td><td>{{ $penjualanBbm->pulau }}</td></tr>
-                    <tr><td class="text-muted">Nozzle</td><td>{{ $penjualanBbm->nozzle }}</td></tr>
-                    <tr><td class="text-muted">Jenis BBM</td><td>{{ $penjualanBbm->jenis_bbm }}</td></tr>
+                    <tr><td class="text-muted">Jenis BBM</td><td>{{ $penjualanBbm->jenis_bbm }} @if($penjualanBbm->ron) (RON {{ $penjualanBbm->ron }}) @endif</td></tr>
                     <tr><td class="text-muted">Operator</td><td>{{ $penjualanBbm->absensis->user->name ?? '-' }}</td></tr>
                     <tr><td class="text-muted">Catatan</td><td>{{ $penjualanBbm->catatan ?? '-' }}</td></tr>
                 </table>

@@ -6,6 +6,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PresensiController;
 use App\Http\Controllers\PengeluaranController;
 use App\Http\Controllers\PenjualanBbmController;
+use App\Http\Controllers\MasterBbmController;
 use App\Http\Controllers\CoaController;
 use App\Http\Controllers\JurnalUmumController;
 use App\Http\Controllers\BukuBesarController;
@@ -103,6 +104,10 @@ Route::middleware('auth')->group(function () {
     Route::middleware('role:manager')->group(function () {
         // COA full (manager & IT bisa tambah/edit/hapus)
         Route::resource('coa', CoaController::class);
+
+        // Master BBM full (manager & IT bisa tambah/edit/hapus) - tanpa show,
+        // tidak ada halaman detail terpisah untuk master data ini.
+        Route::resource('master-bbm', MasterBbmController::class)->except(['show']);
 
         // Jurnal & Buku Besar read only
         Route::resource('jurnal-umum', JurnalUmumController::class)->only(['index', 'show']);

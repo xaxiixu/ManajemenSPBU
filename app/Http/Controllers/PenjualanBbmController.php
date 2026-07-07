@@ -5,24 +5,45 @@ namespace App\Http\Controllers;
 use App\Services\JurnalService;
 use App\Models\PenjualanBbm;
 use App\Models\Absensis;
+use App\Models\MasterBbm;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
 
 class PenjualanBbmController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $data = PenjualanBbm::with(['absensis', 'coa'])
-            ->latest('tanggal')
-            ->paginate(15);
+        $bulan = $request->bulan;
 
-        return view('penjualan-bbm.index', compact('data'));
+        if ($bulan) {
+            $dari   = \Carbon\Carbon::parse($bulan . '-01')->startOfMonth()->toDateString();
+            $sampai = \Carbon\Carbon::parse($bulan . '-01')->endOfMonth()->toDateString();
+        } else {
+            $dari   = $request->dari   ?? today()->startOfMonth()->toDateString();
+            $sampai = $request->sampai ?? today()->toDateString();
+        }
+
+        $shift    = $request->shift;
+        $jenisBbm = $request->jenis_bbm;
+
+        $data = PenjualanBbm::with(['absensis.user', 'coa'])
+            ->whereBetween('tanggal', [$dari, $sampai])
+            ->when($shift, fn ($q) => $q->where('shift', $shift))
+            ->when($jenisBbm, fn ($q) => $q->where('jenis_bbm', $jenisBbm))
+            ->latest('tanggal')
+            ->get();
+
+        $jenisBbmOptions = MasterBbm::orderBy('jenis_bbm')->pluck('jenis_bbm');
+
+        return view('penjualan-bbm.index', compact('data', 'dari', 'sampai', 'bulan', 'shift', 'jenisBbm', 'jenisBbmOptions'));
     }
 
     public function create()
     {
-        return view('penjualan-bbm.create');
+        $jenisBbmOptions = MasterBbm::where('is_aktif', 1)->orderBy('jenis_bbm')->get();
+
+        return view('penjualan-bbm.create', compact('jenisBbmOptions'));
     }
 
     public function store(Request $request)
@@ -32,11 +53,9 @@ class PenjualanBbmController extends Controller
             'shift'            => 'required|in:Pagi,Siang,Malam',
             'operator_id'      => 'required|exists:users,id',
             'pulau'            => 'required|string|max:10',
-            'nozzle'           => 'required|string|max:10',
-            'jenis_bbm'        => 'required|in:Pertalite,Pertamax,Solar',
+            'jenis_bbm'        => 'required|string|exists:master_bbm,jenis_bbm',
             'meter_awal'       => 'required|numeric|min:0',
             'meter_akhir'      => 'required|numeric|gt:meter_awal',
-            'harga_per_liter'  => 'required|numeric|min:1',
             'foto_meter_awal'  => 'required|image|max:2048',
             'foto_meter_akhir' => 'required|image|max:2048',
             'catatan'          => 'nullable|string',
@@ -45,7 +64,21 @@ class PenjualanBbmController extends Controller
             'foto_meter_awal.required'  => 'Foto meter awal wajib diupload.',
             'foto_meter_akhir.required' => 'Foto meter akhir wajib diupload.',
             'operator_id.required'      => 'Pilih operator yang bertugas.',
+            'jenis_bbm.exists'          => 'Jenis BBM tidak valid.',
         ]);
+
+        // Harga, RON, dan akun COA TIDAK dipercaya dari input form (form hanya
+        // menampilkannya untuk auto-fill/preview) - selalu diambil ulang dari
+        // master_bbm di server supaya harga tidak bisa dimanipulasi lewat request.
+        $masterBbm = MasterBbm::where('jenis_bbm', $validated['jenis_bbm'])
+            ->where('is_aktif', 1)
+            ->first();
+
+        if (!$masterBbm) {
+            return back()
+                ->withErrors(['jenis_bbm' => 'Jenis BBM tidak aktif atau tidak ditemukan.'])
+                ->withInput();
+        }
 
         // Validasi ketat: operator yang dipilih harus benar-benar tercatat
         // hadir pada tanggal & shift ini - jangan percaya isi dropdown begitu
@@ -70,12 +103,12 @@ class PenjualanBbmController extends Controller
             'shift'             => $validated['shift'],
             'absensis_id'       => $absensi->id,
             'pulau'             => $validated['pulau'],
-            'nozzle'            => $validated['nozzle'],
-            'jenis_bbm'         => $validated['jenis_bbm'],
-            'coa_pendapatan_id' => PenjualanBbm::coaByJenisBbm($validated['jenis_bbm']),
+            'jenis_bbm'         => $masterBbm->jenis_bbm,
+            'ron'               => $masterBbm->ron,
+            'coa_pendapatan_id' => $masterBbm->coa_pendapatan_id,
             'meter_awal'        => $validated['meter_awal'],
             'meter_akhir'       => $validated['meter_akhir'],
-            'harga_per_liter'   => $validated['harga_per_liter'],
+            'harga_per_liter'   => $masterBbm->harga_per_liter,
             'foto_meter_awal'   => $fotoAwal,
             'foto_meter_akhir'  => $fotoAkhir,
             'catatan'           => $validated['catatan'] ?? null,

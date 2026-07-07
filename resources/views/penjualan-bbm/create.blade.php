@@ -5,8 +5,19 @@
 @section('content')
 <div class="page-header">
     <h2><i class="bi bi-plus-circle me-2 text-danger"></i>Tambah Penjualan BBM</h2>
-    <p>Input data penjualan satu nozzle</p>
+    <p>Input data penjualan satu shift</p>
 </div>
+
+@if ($errors->any())
+<div class="alert alert-danger">
+    <strong><i class="bi bi-exclamation-triangle-fill me-1"></i>Data belum tersimpan, periksa kembali:</strong>
+    <ul class="mb-0 mt-1">
+        @foreach ($errors->all() as $error)
+        <li>{{ $error }}</li>
+        @endforeach
+    </ul>
+</div>
+@endif
 
 <form action="{{ route('penjualan-bbm.store') }}" method="POST" enctype="multipart/form-data">
 @csrf
@@ -39,36 +50,39 @@
                     <small id="operatorHelp" class="text-muted"></small>
                     @error('operator_id')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
                 </div>
-                <div class="row">
-                    <div class="col-6 mb-3">
-                        <label class="form-label fw-semibold">Pulau</label>
-                        <input type="text" name="pulau" class="form-control" placeholder="cth: 1" required>
-                    </div>
-                    <div class="col-6 mb-3">
-                        <label class="form-label fw-semibold">Nozzle</label>
-                        <input type="text" name="nozzle" class="form-control" placeholder="cth: 1A" required>
-                    </div>
-                </div>
                 <div class="mb-3">
                     <label class="form-label fw-semibold">Jenis BBM</label>
-                    <select name="jenis_bbm" class="form-select" required>
+                    <select name="jenis_bbm" id="jenisBbmSelect" class="form-select" required>
                         <option value="">-- Pilih Jenis BBM --</option>
-                        <option value="Pertalite">Pertalite</option>
-                        <option value="Pertamax">Pertamax</option>
-                        <option value="Solar">Solar</option>
+                        @foreach($jenisBbmOptions as $jb)
+                        <option value="{{ $jb->jenis_bbm }}"
+                            data-ron="{{ $jb->ron }}"
+                            data-harga="{{ $jb->harga_per_liter }}"
+                            {{ old('jenis_bbm') === $jb->jenis_bbm ? 'selected' : '' }}>
+                            {{ $jb->jenis_bbm }}
+                        </option>
+                        @endforeach
                     </select>
+                    @error('jenis_bbm')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
+                </div>
+                <div class="row">
+                    <div class="col-6 mb-3">
+                        <label class="form-label fw-semibold">RON</label>
+                        <input type="text" id="ronDisplay" class="form-control bg-light" value="-" readonly tabindex="-1">
+                        <input type="hidden" name="ron" id="ronValue">
+                        <small class="text-muted">Otomatis mengikuti jenis BBM.</small>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <label class="form-label fw-semibold">Harga per Liter (Rp)</label>
+                        <input type="text" id="hargaDisplay" class="form-control bg-light" value="-" readonly tabindex="-1">
+                        <input type="hidden" name="harga_per_liter" id="hargaValue">
+                        <small class="text-muted">Otomatis mengikuti jenis BBM.</small>
+                    </div>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label fw-semibold">Harga per Liter (Rp)</label>
-                    <div class="input-group">
-                        <span class="input-group-text">Rp</span>
-                        <input type="text" id="hargaDisplay" class="form-control"
-                            placeholder="cth: 10.000"
-                            value="{{ old('harga_per_liter') ? number_format(old('harga_per_liter'), 0, ',', '.') : '' }}"
-                            autocomplete="off" required>
-                        <input type="hidden" name="harga_per_liter" id="hargaValue" value="{{ old('harga_per_liter') }}">
-                    </div>
-                    <small class="text-muted">Gunakan titik sebagai pemisah ribuan. Contoh: 10.000</small>
+                    <label class="form-label fw-semibold">Pulau</label>
+                    <input type="text" name="pulau" class="form-control" placeholder="cth: 1" required
+                        value="{{ old('pulau') }}">
                 </div>
             </div>
         </div>
@@ -81,16 +95,18 @@
             <div class="card-body">
                 <div class="mb-3">
                     <label class="form-label fw-semibold">Meter Awal</label>
-                    <input type="number" name="meter_awal" class="form-control" id="meterAwal" placeholder="Angka meter awal" required>
+                    <input type="number" name="meter_awal" class="form-control" id="meterAwal" placeholder="Angka meter awal"
+                        value="{{ old('meter_awal') }}" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Meter Akhir</label>
+                    <input type="number" name="meter_akhir" class="form-control" id="meterAkhir" placeholder="Angka meter akhir"
+                        value="{{ old('meter_akhir') }}" required>
                 </div>
                 <div class="mb-3">
                     <label class="form-label fw-semibold">Foto Meter Awal</label>
                     <input type="file" name="foto_meter_awal" class="form-control" accept="image/*" required>
                     <small class="text-muted">Format JPG/PNG, maks 2MB</small>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label fw-semibold">Meter Akhir</label>
-                    <input type="number" name="meter_akhir" class="form-control" id="meterAkhir" placeholder="Angka meter akhir" required>
                 </div>
                 <div class="mb-3">
                     <label class="form-label fw-semibold">Foto Meter Akhir</label>
@@ -112,7 +128,7 @@
 
                 <div class="mt-3">
                     <label class="form-label fw-semibold">Catatan (opsional)</label>
-                    <textarea name="catatan" class="form-control" rows="2"></textarea>
+                    <textarea name="catatan" class="form-control" rows="2">{{ old('catatan') }}</textarea>
                 </div>
             </div>
         </div>
@@ -183,12 +199,44 @@
         muatOperator(true);
     }
 
+    // Auto-fill RON & harga per liter dari master_bbm saat jenis BBM dipilih.
+    // Field ini readonly (bukan disabled) supaya nilainya tetap ikut ter-submit,
+    // meskipun controller tetap mengambil ulang nilai resminya dari server.
+    const jenisBbmSelect = document.getElementById('jenisBbmSelect');
+    const ronDisplay      = document.getElementById('ronDisplay');
+    const ronValue        = document.getElementById('ronValue');
+    const hargaDisplay    = document.getElementById('hargaDisplay');
+    const hargaValue      = document.getElementById('hargaValue');
+    let hargaAktif = 0;
+
+    function updateJenisBbm() {
+        const opt = jenisBbmSelect.options[jenisBbmSelect.selectedIndex];
+
+        if (opt && opt.value) {
+            ronDisplay.value   = opt.dataset.ron || '-';
+            ronValue.value     = opt.dataset.ron || '';
+            hargaAktif          = parseFloat(opt.dataset.harga) || 0;
+            hargaDisplay.value = 'Rp ' + hargaAktif.toLocaleString('id-ID');
+            hargaValue.value   = hargaAktif;
+        } else {
+            ronDisplay.value   = '-';
+            ronValue.value     = '';
+            hargaAktif          = 0;
+            hargaDisplay.value = '-';
+            hargaValue.value   = '';
+        }
+
+        updatePreview();
+    }
+
+    jenisBbmSelect.addEventListener('change', updateJenisBbm);
+    updateJenisBbm();
+
     function updatePreview() {
         const awal  = parseFloat(document.getElementById('meterAwal').value) || 0;
         const akhir = parseFloat(document.getElementById('meterAkhir').value) || 0;
-        const harga = parseFloat(document.getElementById('hargaValue').value) || 0;
         const liter = akhir - awal;
-        const total = liter * harga;
+        const total = liter * hargaAktif;
 
         document.getElementById('previewLiter').textContent =
             liter > 0 ? liter.toLocaleString('id-ID') + ' L' : '— L';
@@ -198,19 +246,5 @@
 
     document.getElementById('meterAwal').addEventListener('input', updatePreview);
     document.getElementById('meterAkhir').addEventListener('input', updatePreview);
-
-    const hargaDisplay = document.getElementById('hargaDisplay');
-    const hargaValue   = document.getElementById('hargaValue');
-
-    hargaDisplay.addEventListener('input', function () {
-        let raw = this.value.replace(/\D/g, '');
-        this.value = raw.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-        hargaValue.value = raw;
-        updatePreview(); // ← trigger preview setelah harga diupdate
-    });
-
-    hargaDisplay.closest('form').addEventListener('submit', function () {
-        hargaValue.value = hargaDisplay.value.replace(/\D/g, '');
-    });
 </script>
 @endpush

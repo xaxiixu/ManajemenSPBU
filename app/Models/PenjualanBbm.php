@@ -12,8 +12,8 @@ class PenjualanBbm extends Model
     protected $table = 'penjualan_bbm';
 
     protected $fillable = [
-        'tanggal', 'shift', 'absensis_id', 'pulau', 'nozzle',
-        'jenis_bbm', 'coa_pendapatan_id', 'meter_awal', 'meter_akhir',
+        'tanggal', 'shift', 'absensis_id', 'pulau',
+        'jenis_bbm', 'ron', 'coa_pendapatan_id', 'meter_awal', 'meter_akhir',
         'liter_terjual', 'harga_per_liter', 'total_penjualan',
         'foto_meter_awal', 'foto_meter_akhir', 'catatan', 'dicatat_oleh',
     ];
@@ -46,16 +46,5 @@ class PenjualanBbm extends Model
             $p->liter_terjual   = $p->meter_akhir - $p->meter_awal;
             $p->total_penjualan = $p->liter_terjual * $p->harga_per_liter;
         });
-    }
-
-    public static function coaByJenisBbm(string $jenis): ?int
-    {
-        $map = [
-            'Pertalite' => '4101-1',
-            'Pertamax'  => '4101-2',
-            'Solar'     => '4101-3',
-        ];
-        $kode = $map[$jenis] ?? null;
-        return $kode ? Coa::where('kode_akun', $kode)->value('id') : null;
     }
 }

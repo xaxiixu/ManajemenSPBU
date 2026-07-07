@@ -22,7 +22,7 @@ class JurnalService
         $jurnal = JurnalUmum::create([
             'nomor_jurnal' => JurnalUmum::generateNomor($penjualan->tanggal),
             'tanggal'      => $penjualan->tanggal,
-            'keterangan'   => 'Penjualan ' . $penjualan->jenis_bbm . ' - Shift ' . $penjualan->shift . ' Nozzle ' . $penjualan->nozzle,
+            'keterangan'   => 'Penjualan ' . $penjualan->jenis_bbm . ' - Shift ' . $penjualan->shift . ' Pulau ' . $penjualan->pulau,
             'sumber'       => 'penjualan_bbm',
             'referensi_id' => $penjualan->id,
             'dibuat_oleh'  => auth()->id(),

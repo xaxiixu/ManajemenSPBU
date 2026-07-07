@@ -431,6 +431,12 @@
                 <i class="bi bi-list-columns-reverse"></i> COA
             </a>
         </div>
+        <div class="nav-item">
+            <a href="{{ route('master-bbm.index') }}"
+                class="{{ request()->routeIs('master-bbm.*') ? 'active' : '' }}">
+                <i class="bi bi-fuel-pump-fill"></i> Master BBM
+            </a>
+        </div>
         @endif
 
         {{-- TRANSAKSI: Manager + IT --}}
