@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Absensis;
+use App\Models\Lembur;
 use App\Models\ShiftMaster;
 
 class PresensiController extends Controller
@@ -98,7 +99,52 @@ class PresensiController extends Controller
             return back()->withErrors(['presensi' => 'Tidak ada sesi absen masuk yang terbuka.']);
         }
 
-        $sesi->update(['jam_keluar' => now()->format('H:i:s')]);
+        $jamKeluar = now()->format('H:i:s');
+
+        $menitPulangCepat = 0;
+        $flagKelebihan    = false;
+
+        $shiftMaster = ShiftMaster::where('shift', $sesi->shift)->first();
+
+        if ($shiftMaster) {
+            // Lembur approved di tanggal (operasional) yang sama menggantikan
+            // jam_selesai shift biasa sebagai acuan jam pulang yang diharapkan.
+            $lemburApproved = Lembur::where('user_id', $userId)
+                ->where('status', 'approved')
+                ->whereDate('tanggal', $sesi->tanggal)
+                ->first();
+
+            $selisih = Absensis::hitungSelisihPulang(
+                $shiftMaster,
+                $sesi->tanggal,
+                $jamKeluar,
+                $lemburApproved?->jam_selesai
+            );
+
+            $menitPulangCepat = $selisih['menit_pulang_cepat'];
+            $flagKelebihan    = $selisih['flag_kelebihan_waktu'];
+        }
+
+        // Tambahkan catatan baru TANPA menimpa keterangan yang sudah ada
+        // (mis. "Telat 15 menit" dari saat absen masuk).
+        $catatanBaru = null;
+        if ($menitPulangCepat > 0) {
+            $catatanBaru = "Pulang cepat {$menitPulangCepat} menit";
+        } elseif ($flagKelebihan) {
+            $catatanBaru = 'Kelebihan waktu tidak tercatat, perlu ditinjau pengawas';
+        }
+
+        $keterangan = $sesi->keterangan;
+        if ($catatanBaru) {
+            $keterangan = $keterangan ? "{$keterangan}; {$catatanBaru}" : $catatanBaru;
+        }
+
+        $sesi->update([
+            'jam_keluar'           => $jamKeluar,
+            'menit_pulang_cepat'   => $menitPulangCepat,
+            'flag_kelebihan_waktu' => $flagKelebihan,
+            'keterangan'           => $keterangan,
+        ]);
 
         return redirect()->route('presensi.index')->with('success', 'Absen keluar berhasil dicatat.');
     }

@@ -21,18 +21,18 @@ $statusInfo = [
         <div class="card">
             <div class="card-header">Form Pengajuan</div>
             <div class="card-body">
-                <form method="POST" action="{{ route('lembur.store') }}">
+                <form method="POST" action="{{ route('lembur.store') }}" id="formLembur">
                 @csrf
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Tanggal</label>
-                        <input type="date" name="tanggal" class="form-control" value="{{ old('tanggal', date('Y-m-d')) }}" required>
+                        <input type="date" name="tanggal" id="tanggalInput" class="form-control" value="{{ old('tanggal', date('Y-m-d')) }}" required>
                         @error('tanggal')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
                     </div>
                     <div class="row">
                         <div class="col-6 mb-3">
                             <label class="form-label fw-semibold">Jam Mulai</label>
-                            <input type="time" name="jam_mulai" class="form-control" value="{{ old('jam_mulai') }}" required>
-                            @error('jam_mulai')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
+                            <input type="text" id="jamMulaiDisplay" class="form-control bg-light" value="-" readonly tabindex="-1">
+                            <small class="text-muted">Otomatis = jam selesai shift Anda tanggal tsb.</small>
                         </div>
                         <div class="col-6 mb-3">
                             <label class="form-label fw-semibold">Jam Selesai</label>
@@ -40,12 +40,13 @@ $statusInfo = [
                             @error('jam_selesai')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
                         </div>
                     </div>
+                    <small id="shiftHelp" class="text-muted d-block mb-3"></small>
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Alasan</label>
                         <textarea name="alasan" class="form-control" rows="3" required>{{ old('alasan') }}</textarea>
                         @error('alasan')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
                     </div>
-                    <button type="submit" class="btn btn-danger"><i class="bi bi-send me-1"></i>Ajukan</button>
+                    <button type="submit" id="submitLembur" class="btn btn-danger"><i class="bi bi-send me-1"></i>Ajukan</button>
                 </form>
             </div>
         </div>
@@ -140,6 +141,53 @@ $statusInfo = [
 function confirmBatal(url) {
     document.getElementById('formBatal').action = url;
     new bootstrap.Modal(document.getElementById('modalBatal')).show();
+}
+
+const tanggalInput    = document.getElementById('tanggalInput');
+const jamMulaiDisplay = document.getElementById('jamMulaiDisplay');
+const shiftHelp       = document.getElementById('shiftHelp');
+const submitLembur    = document.getElementById('submitLembur');
+
+async function muatJamMulai() {
+    const tanggal = tanggalInput.value;
+
+    if (!tanggal) {
+        jamMulaiDisplay.value = '-';
+        shiftHelp.textContent = '';
+        return;
+    }
+
+    jamMulaiDisplay.value = 'Memuat...';
+    submitLembur.disabled = true;
+
+    try {
+        const url = '{{ route('lembur.jam-mulai-tersedia') }}?tanggal=' + encodeURIComponent(tanggal);
+        const res = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+        const data = await res.json();
+
+        if (!data.ditemukan) {
+            jamMulaiDisplay.value = '-';
+            shiftHelp.textContent = 'Anda belum tercatat hadir pada tanggal ini, tidak bisa mengajukan lembur.';
+            shiftHelp.classList.add('text-danger');
+            submitLembur.disabled = true;
+            return;
+        }
+
+        jamMulaiDisplay.value = data.jam_mulai;
+        shiftHelp.textContent = `Shift ${data.shift} - jam mulai lembur otomatis mengikuti jam selesai shift ini.`;
+        shiftHelp.classList.remove('text-danger');
+        submitLembur.disabled = false;
+    } catch (e) {
+        jamMulaiDisplay.value = '-';
+        shiftHelp.textContent = 'Gagal memuat data shift.';
+        shiftHelp.classList.add('text-danger');
+        submitLembur.disabled = true;
+    }
+}
+
+tanggalInput.addEventListener('change', muatJamMulai);
+if (tanggalInput.value) {
+    muatJamMulai();
 }
 </script>
 @endpush

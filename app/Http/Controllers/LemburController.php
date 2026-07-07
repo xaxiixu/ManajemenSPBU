@@ -2,8 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Absensis;
 use App\Models\Lembur;
+use App\Models\ShiftMaster;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+use Illuminate\Validation\ValidationException;
 
 class LemburController extends Controller
 {
@@ -81,25 +85,96 @@ class LemburController extends Controller
             ->with('success', 'Pengajuan lembur berhasil dibatalkan.');
     }
 
+    // AJAX: dipanggil form saat petugas pilih tanggal, buat preview jam_mulai
+    // (readonly) yang otomatis mengikuti jam_selesai shift hari itu.
+    public function jamMulaiTersedia(Request $request)
+    {
+        $validated = $request->validate(['tanggal' => 'required|date']);
+
+        $jamMulai = $this->jamMulaiDariShift(auth()->id(), $validated['tanggal']);
+
+        if (!$jamMulai) {
+            return response()->json(['ditemukan' => false]);
+        }
+
+        return response()->json([
+            'ditemukan' => true,
+            'shift'     => $jamMulai['shift'],
+            'jam_mulai' => $jamMulai['jam_mulai'],
+        ]);
+    }
+
+    // tanggal di sini adalah tanggal OPERASIONAL (sama dengan tanggal absensi
+    // shift-nya) - bukan tanggal kalender jam_mulai lembur sungguhan. Konsisten
+    // dengan tanggal presensi shift lintas tengah malam (mis. shift Malam yang
+    // dimulai 7 Juli tetap tercatat tanggal 7 Juli walau berakhir jam 07:00 tgl 8).
+    private function jamMulaiDariShift(int $userId, string $tanggal): ?array
+    {
+        $absensi = Absensis::where('user_id', $userId)
+            ->whereDate('tanggal', $tanggal)
+            ->where('status_hadir', 'hadir')
+            ->first();
+
+        if (!$absensi) {
+            return null;
+        }
+
+        $shiftMaster = ShiftMaster::where('shift', $absensi->shift)->first();
+
+        if (!$shiftMaster) {
+            return null;
+        }
+
+        return [
+            'shift'     => $absensi->shift,
+            'jam_mulai' => substr($shiftMaster->jam_selesai, 0, 5),
+        ];
+    }
+
     private function validateForm(Request $request): array
     {
-        return $request->validate([
+        $validated = $request->validate([
             'tanggal'     => 'required|date|after_or_equal:today',
-            'jam_mulai'   => 'required|date_format:H:i',
-            'jam_selesai' => [
-                'required',
-                'date_format:H:i',
-                // Lembur SPBU umum lintas tengah malam (mis. 22:00-02:00), jadi
-                // jam_selesai < jam_mulai itu valid (dianggap lanjut ke hari
-                // berikutnya) - hanya tolak kalau persis sama (durasi nol).
-                function ($attribute, $value, $fail) use ($request) {
-                    if ($value === $request->jam_mulai) {
-                        $fail('Jam selesai tidak boleh sama dengan jam mulai.');
-                    }
-                },
-            ],
+            'jam_selesai' => 'required|date_format:H:i',
             'alasan'      => 'required|string|max:255',
         ]);
+
+        // jam_mulai TIDAK pernah dipercaya dari input form (form hanya
+        // menampilkannya sebagai preview readonly) - selalu diambil ulang dari
+        // absensi + shift_master di server.
+        $jamMulaiInfo = $this->jamMulaiDariShift(auth()->id(), $validated['tanggal']);
+
+        if (!$jamMulaiInfo) {
+            throw ValidationException::withMessages([
+                'tanggal' => 'Anda belum tercatat hadir pada tanggal ini, tidak bisa mengajukan lembur.',
+            ]);
+        }
+
+        $jamMulai = $jamMulaiInfo['jam_mulai'];
+
+        if ($validated['jam_selesai'] === $jamMulai) {
+            throw ValidationException::withMessages([
+                'jam_selesai' => 'Jam selesai tidak boleh sama dengan jam mulai.',
+            ]);
+        }
+
+        // Durasi maksimal 4 jam - lintas tengah malam dianggap lanjut ke hari
+        // berikutnya (jam_selesai < jam_mulai), sama seperti Lembur::getDurasiMenitAttribute().
+        $mulai   = Carbon::parse($jamMulai);
+        $selesai = Carbon::parse($validated['jam_selesai']);
+        if ($selesai->lessThanOrEqualTo($mulai)) {
+            $selesai->addDay();
+        }
+
+        if ($mulai->diffInMinutes($selesai) > 240) {
+            throw ValidationException::withMessages([
+                'jam_selesai' => 'Durasi lembur maksimal 4 jam.',
+            ]);
+        }
+
+        $validated['jam_mulai'] = $jamMulai;
+
+        return $validated;
     }
 
     // Pengawas/Manager/IT

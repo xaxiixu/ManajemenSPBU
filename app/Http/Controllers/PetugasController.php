@@ -74,10 +74,12 @@ class PetugasController extends Controller
     public function updateAbsensi(Request $request, Absensis $absensi)
     {
         $validated = $request->validate([
-            'status_hadir' => 'required|in:hadir,sakit,izin,tidak_hadir',
-            'jam_masuk'    => 'nullable|date_format:H:i',
-            'jam_keluar'   => 'nullable|date_format:H:i',
-            'keterangan'   => 'nullable|string|max:255',
+            'status_hadir'         => 'required|in:hadir,sakit,izin,tidak_hadir',
+            'jam_masuk'            => 'nullable|date_format:H:i',
+            'jam_keluar'           => 'nullable|date_format:H:i',
+            'menit_pulang_cepat'   => 'nullable|integer|min:0',
+            'flag_kelebihan_waktu' => 'nullable|boolean',
+            'keterangan'           => 'nullable|string|max:255',
         ]);
 
         $jamMasuk = $validated['jam_masuk'] ? $validated['jam_masuk'] . ':00' : null;
@@ -91,12 +93,18 @@ class PetugasController extends Controller
             }
         }
 
+        // menit_pulang_cepat & flag_kelebihan_waktu dihitung otomatis saat absen
+        // keluar (lihat PresensiController::absenKeluar()), tapi pengawas/manager
+        // tetap bisa koreksi manual di sini (mis. kalau hasil otomatis meleset
+        // karena data lembur/shift menyusul diperbaiki setelah presensi terjadi).
         $absensi->update([
-            'status_hadir' => $validated['status_hadir'],
-            'jam_masuk'    => $jamMasuk,
-            'jam_keluar'   => $jamKeluar,
-            'menit_telat'  => $menitTelat,
-            'keterangan'   => $validated['keterangan'] ?? null,
+            'status_hadir'         => $validated['status_hadir'],
+            'jam_masuk'            => $jamMasuk,
+            'jam_keluar'           => $jamKeluar,
+            'menit_telat'          => $menitTelat,
+            'menit_pulang_cepat'   => $validated['menit_pulang_cepat'] ?? 0,
+            'flag_kelebihan_waktu' => $request->boolean('flag_kelebihan_waktu'),
+            'keterangan'           => $validated['keterangan'] ?? null,
         ]);
 
         return redirect()->route('petugas.show', $absensi->user_id)

@@ -59,6 +59,7 @@ $statusInfo = [
                     <th>Jam Keluar</th>
                     <th>Status</th>
                     <th>Menit Telat</th>
+                    <th>Indikator Pulang</th>
                     <th>Keterangan</th>
                     <th>Aksi</th>
                 </tr>
@@ -81,10 +82,21 @@ $statusInfo = [
                         </span>
                     </td>
                     <td>{{ $item->menit_telat > 0 ? $item->menit_telat . ' menit' : '-' }}</td>
+                    <td>
+                        @if($item->menit_pulang_cepat > 0)
+                            <span class="badge bg-warning text-dark">Pulang cepat {{ $item->menit_pulang_cepat }} menit</span>
+                        @endif
+                        @if($item->flag_kelebihan_waktu)
+                            <span class="badge bg-danger">Kelebihan waktu</span>
+                        @endif
+                        @if(!$item->menit_pulang_cepat && !$item->flag_kelebihan_waktu)
+                            -
+                        @endif
+                    </td>
                     <td>{{ $item->keterangan ?? '-' }}</td>
                     <td class="text-nowrap">
                         <button type="button" class="btn btn-sm btn-outline-primary"
-                            onclick="bukaModalEditAbsensi({{ $item->id }}, '{{ $item->status_hadir }}', '{{ substr($item->jam_masuk ?? '', 0, 5) }}', '{{ substr($item->jam_keluar ?? '', 0, 5) }}', '{{ addslashes($item->keterangan ?? '') }}')">
+                            onclick="bukaModalEditAbsensi({{ $item->id }}, '{{ $item->status_hadir }}', '{{ substr($item->jam_masuk ?? '', 0, 5) }}', '{{ substr($item->jam_keluar ?? '', 0, 5) }}', {{ (int) $item->menit_pulang_cepat }}, {{ $item->flag_kelebihan_waktu ? 'true' : 'false' }}, '{{ addslashes($item->keterangan ?? '') }}')">
                             <i class="bi bi-pencil"></i>
                         </button>
                         <button type="button" class="btn btn-sm btn-outline-danger"
@@ -95,7 +107,7 @@ $statusInfo = [
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="8" class="text-center py-4 text-muted">Belum ada riwayat presensi.</td>
+                    <td colspan="9" class="text-center py-4 text-muted">Belum ada riwayat presensi.</td>
                 </tr>
                 @endforelse
             </tbody>
@@ -135,6 +147,20 @@ $statusInfo = [
                         </div>
                     </div>
                     <p class="text-muted small">Menit telat dihitung ulang otomatis dari jam masuk & shift.</p>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label fw-semibold">Menit Pulang Cepat</label>
+                            <input type="number" name="menit_pulang_cepat" id="editMenitPulangCepat" class="form-control" min="0">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-semibold d-block">Kelebihan Waktu</label>
+                            <div class="form-check form-switch mt-2">
+                                <input type="checkbox" name="flag_kelebihan_waktu" id="editFlagKelebihan" class="form-check-input" value="1">
+                                <label class="form-check-label" for="editFlagKelebihan">Tandai kelebihan waktu</label>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="text-muted small">Dua field di atas otomatis terisi saat petugas absen keluar, tapi bisa dikoreksi manual di sini kalau perlu.</p>
                     <div class="mb-0">
                         <label class="form-label fw-semibold">Keterangan <span class="text-muted fw-normal">(opsional)</span></label>
                         <input type="text" name="keterangan" id="editKeterangan" class="form-control">
@@ -182,11 +208,13 @@ $statusInfo = [
 
 @push('scripts')
 <script>
-function bukaModalEditAbsensi(id, statusHadir, jamMasuk, jamKeluar, keterangan) {
+function bukaModalEditAbsensi(id, statusHadir, jamMasuk, jamKeluar, menitPulangCepat, flagKelebihan, keterangan) {
     document.getElementById('formEditAbsensi').action = '/absensi/' + id;
     document.getElementById('editStatusHadir').value = statusHadir;
     document.getElementById('editJamMasuk').value = jamMasuk;
     document.getElementById('editJamKeluar').value = jamKeluar;
+    document.getElementById('editMenitPulangCepat').value = menitPulangCepat;
+    document.getElementById('editFlagKelebihan').checked = flagKelebihan;
     document.getElementById('editKeterangan').value = keterangan;
     new bootstrap.Modal(document.getElementById('modalEditAbsensi')).show();
 }

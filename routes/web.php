@@ -59,6 +59,7 @@ Route::middleware('auth')->group(function () {
 
         Route::get('/lembur', [LemburController::class, 'index'])->name('lembur.index');
         Route::post('/lembur', [LemburController::class, 'store'])->name('lembur.store');
+        Route::get('/lembur/jam-mulai-tersedia', [LemburController::class, 'jamMulaiTersedia'])->name('lembur.jam-mulai-tersedia');
         Route::get('/lembur/{lembur}/edit', [LemburController::class, 'edit'])->name('lembur.edit');
         Route::put('/lembur/{lembur}', [LemburController::class, 'update'])->name('lembur.update');
         Route::delete('/lembur/{lembur}', [LemburController::class, 'destroy'])->name('lembur.destroy');
