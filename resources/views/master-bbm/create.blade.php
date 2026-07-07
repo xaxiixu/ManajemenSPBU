@@ -42,10 +42,20 @@
                         <label class="form-label fw-semibold">Akun Pendapatan (COA)</label>
                         <select name="coa_pendapatan_id" class="form-select" required>
                             <option value="">-- Pilih Akun Pendapatan --</option>
-                            @foreach($coaPendapatan as $c)
-                            <option value="{{ $c->id }}" {{ old('coa_pendapatan_id') == $c->id ? 'selected' : '' }}>
-                                {{ $c->kode_akun }} — {{ $c->nama_akun }}
-                            </option>
+                            @foreach($coaPendapatan as $item)
+                                @if($item->children->count() > 0)
+                                <optgroup label="{{ $item->kode_akun }} — {{ $item->nama_akun }}">
+                                    @foreach($item->children as $child)
+                                    <option value="{{ $child->id }}" {{ old('coa_pendapatan_id') == $child->id ? 'selected' : '' }}>
+                                        {{ $child->kode_akun }} — {{ $child->nama_akun }}
+                                    </option>
+                                    @endforeach
+                                </optgroup>
+                                @else
+                                <option value="{{ $item->id }}" {{ old('coa_pendapatan_id') == $item->id ? 'selected' : '' }}>
+                                    {{ $item->kode_akun }} — {{ $item->nama_akun }}
+                                </option>
+                                @endif
                             @endforeach
                         </select>
                         <small class="text-muted">Akun ini dipakai jurnal otomatis saat ada penjualan jenis BBM ini.</small>

@@ -49,11 +49,19 @@ Route::middleware('auth')->group(function () {
         Route::post('/presensi/absen-masuk', [PresensiController::class, 'absenMasuk'])->name('presensi.absen-masuk');
         Route::post('/presensi/absen-keluar', [PresensiController::class, 'absenKeluar'])->name('presensi.absen-keluar');
 
-        // Pengajuan shift & lembur: petugas ajukan
+        // Pengajuan shift & lembur: petugas ajukan + edit/batalkan milik sendiri
+        // selama masih pending (ownership & status dicek di controller)
         Route::get('/pengajuan-shift', [PengajuanShiftController::class, 'index'])->name('pengajuan-shift.index');
         Route::post('/pengajuan-shift', [PengajuanShiftController::class, 'store'])->name('pengajuan-shift.store');
+        Route::get('/pengajuan-shift/{pengajuanShift}/edit', [PengajuanShiftController::class, 'edit'])->name('pengajuan-shift.edit');
+        Route::put('/pengajuan-shift/{pengajuanShift}', [PengajuanShiftController::class, 'update'])->name('pengajuan-shift.update');
+        Route::delete('/pengajuan-shift/{pengajuanShift}', [PengajuanShiftController::class, 'destroy'])->name('pengajuan-shift.destroy');
+
         Route::get('/lembur', [LemburController::class, 'index'])->name('lembur.index');
         Route::post('/lembur', [LemburController::class, 'store'])->name('lembur.store');
+        Route::get('/lembur/{lembur}/edit', [LemburController::class, 'edit'])->name('lembur.edit');
+        Route::put('/lembur/{lembur}', [LemburController::class, 'update'])->name('lembur.update');
+        Route::delete('/lembur/{lembur}', [LemburController::class, 'destroy'])->name('lembur.destroy');
     });
 
     // ── Pengawas & IT: input + hapus penjualan BBM ────

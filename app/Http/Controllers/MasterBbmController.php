@@ -79,15 +79,33 @@ class MasterBbmController extends Controller
             ],
             'ron'               => 'nullable|string|max:10',
             'harga_per_liter'   => 'required|integer|min:1',
-            'coa_pendapatan_id' => 'required|exists:coa,id',
+            'coa_pendapatan_id' => [
+                'required',
+                'exists:coa,id',
+                // Akun yang punya children adalah akun induk/rekap - tidak boleh
+                // dipakai langsung di transaksi. Jangan cuma andalkan UI (dropdown
+                // sudah menyembunyikan parent), submit manual/curl harus tetap ditolak.
+                function ($attribute, $value, $fail) {
+                    if (Coa::find($value)?->children()->exists()) {
+                        $fail('Akun COA ini adalah akun induk (parent), tidak bisa dipakai langsung. Pilih akun anak atau akun standalone.');
+                    }
+                },
+            ],
         ], $extraRules));
     }
 
-    // Akun pendapatan (kategori pendapatan, aktif) sebagai pilihan COA di form
+    // Akun pendapatan (kategori pendapatan, aktif) sebagai pilihan COA di form -
+    // parent (punya children) ditampilkan sebagai optgroup label saja (tidak
+    // bisa dipilih), hanya children/akun standalone yang jadi <option>. Pola
+    // sama dengan PengeluaranController::bebanCoaOptions().
     private function coaPendapatanOptions()
     {
         return Coa::where('kategori', 'pendapatan')
             ->where('is_aktif', 1)
+            ->whereNull('parent_id')
+            ->with(['children' => function ($q) {
+                $q->where('is_aktif', 1)->orderBy('kode_akun');
+            }])
             ->orderBy('kode_akun')
             ->get();
     }

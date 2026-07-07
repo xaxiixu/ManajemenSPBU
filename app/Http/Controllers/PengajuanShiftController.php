@@ -25,6 +25,12 @@ class PengajuanShiftController extends Controller
             'alasan'          => 'required|string|max:255',
         ]);
 
+        if (PengajuanShift::where('user_id', auth()->id())->where('status', 'pending')->exists()) {
+            return back()
+                ->withErrors(['shift_diminta' => 'Anda masih punya pengajuan shift yang belum diproses. Selesaikan atau batalkan pengajuan sebelumnya terlebih dahulu.'])
+                ->withInput();
+        }
+
         PengajuanShift::create($validated + [
             'user_id' => auth()->id(),
             'status'  => 'pending',
@@ -34,9 +40,51 @@ class PengajuanShiftController extends Controller
             ->with('success', 'Pengajuan shift berhasil dikirim, menunggu approval.');
     }
 
+    // Petugas: edit pengajuan miliknya sendiri, hanya selama masih pending
+    public function edit(PengajuanShift $pengajuanShift)
+    {
+        abort_if($pengajuanShift->user_id !== auth()->id(), 403, 'Anda tidak bisa mengakses pengajuan milik petugas lain.');
+        abort_if($pengajuanShift->status !== 'pending', 403, "Pengajuan ini sudah diproses (status: {$pengajuanShift->status}), tidak bisa diedit lagi.");
+
+        return view('pengajuan-shift.edit', compact('pengajuanShift'));
+    }
+
+    public function update(Request $request, PengajuanShift $pengajuanShift)
+    {
+        abort_if($pengajuanShift->user_id !== auth()->id(), 403, 'Anda tidak bisa mengubah pengajuan milik petugas lain.');
+        abort_if($pengajuanShift->status !== 'pending', 403, "Pengajuan ini sudah diproses (status: {$pengajuanShift->status}), tidak bisa diedit lagi.");
+
+        $validated = $request->validate([
+            'shift_diminta'   => 'required|in:Pagi,Siang,Malam',
+            'tanggal_berlaku' => 'required|date|after_or_equal:today',
+            'alasan'          => 'required|string|max:255',
+        ]);
+
+        $pengajuanShift->update($validated);
+
+        return redirect()->route('pengajuan-shift.index')
+            ->with('success', 'Pengajuan shift berhasil diperbarui.');
+    }
+
+    // Petugas: batalkan pengajuan miliknya sendiri, hanya selama masih pending
+    public function destroy(PengajuanShift $pengajuanShift)
+    {
+        abort_if($pengajuanShift->user_id !== auth()->id(), 403, 'Anda tidak bisa menghapus pengajuan milik petugas lain.');
+        abort_if($pengajuanShift->status !== 'pending', 403, "Pengajuan ini sudah diproses (status: {$pengajuanShift->status}), tidak bisa dibatalkan lagi.");
+
+        $pengajuanShift->delete();
+
+        return redirect()->route('pengajuan-shift.index')
+            ->with('success', 'Pengajuan shift berhasil dibatalkan.');
+    }
+
     // Pengawas/Manager/IT
     public function approve(Request $request, PengajuanShift $pengajuanShift)
     {
+        if ($pengajuanShift->status !== 'pending') {
+            return back()->with('error', "Pengajuan ini sudah diproses sebelumnya (status: {$pengajuanShift->status}).");
+        }
+
         $validated = $request->validate(['catatan_approval' => 'nullable|string|max:255']);
 
         $pengajuanShift->update([
@@ -55,6 +103,10 @@ class PengajuanShiftController extends Controller
 
     public function reject(Request $request, PengajuanShift $pengajuanShift)
     {
+        if ($pengajuanShift->status !== 'pending') {
+            return back()->with('error', "Pengajuan ini sudah diproses sebelumnya (status: {$pengajuanShift->status}).");
+        }
+
         $validated = $request->validate(['catatan_approval' => 'nullable|string|max:255']);
 
         $pengajuanShift->update([

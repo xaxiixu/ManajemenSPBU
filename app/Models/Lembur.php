@@ -27,4 +27,26 @@ class Lembur extends Model
     {
         return $this->belongsTo(User::class, 'disetujui_oleh');
     }
+
+    // Durasi dalam menit - jam_selesai < jam_mulai berarti lintas tengah malam
+    // (mis. 22:00-02:00), jadi jam_selesai dianggap jatuh di hari berikutnya.
+    public function getDurasiMenitAttribute(): int
+    {
+        $mulai   = \Carbon\Carbon::parse($this->jam_mulai);
+        $selesai = \Carbon\Carbon::parse($this->jam_selesai);
+
+        if ($selesai->lessThanOrEqualTo($mulai)) {
+            $selesai->addDay();
+        }
+
+        return $mulai->diffInMinutes($selesai);
+    }
+
+    public function getDurasiLabelAttribute(): string
+    {
+        $jam       = intdiv($this->durasi_menit, 60);
+        $sisaMenit = $this->durasi_menit % 60;
+
+        return $sisaMenit > 0 ? "{$jam} jam {$sisaMenit} menit" : "{$jam} jam";
+    }
 }
