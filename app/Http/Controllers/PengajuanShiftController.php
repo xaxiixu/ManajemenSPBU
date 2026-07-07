@@ -45,6 +45,11 @@ class PengajuanShiftController extends Controller
             'catatan_approval' => $validated['catatan_approval'] ?? null,
         ]);
 
+        // Approval = kanal resmi untuk ubah shift petugas, jadi langsung
+        // terapkan shift yang diminta ke shift_default user (kalau tidak,
+        // approval tidak berefek apa-apa terhadap shift petugas ybs).
+        $pengajuanShift->user()->update(['shift_default' => $pengajuanShift->shift_diminta]);
+
         return back()->with('success', 'Pengajuan shift disetujui.');
     }
 

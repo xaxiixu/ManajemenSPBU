@@ -8,7 +8,7 @@
         <h2><i class="bi bi-fuel-pump me-2 text-danger"></i>Penjualan BBM</h2>
         <p>Data penjualan bahan bakar minyak</p>
     </div>
-    @if(in_array(auth()->user()->role, ['petugas', 'it']))
+    @if(in_array(auth()->user()->role, ['pengawas', 'it']))
     <a href="{{ route('penjualan-bbm.create') }}" class="btn btn-danger">
         <i class="bi bi-plus-lg me-1"></i> Tambah Data
     </a>
@@ -42,7 +42,7 @@
                         <a href="{{ route('penjualan-bbm.show', $item) }}" class="btn btn-sm btn-outline-primary">
                             <i class="bi bi-eye"></i> Detail
                         </a>
-                        @if($item->dicatat_oleh === auth()->id() || auth()->user()->role === 'it')
+                        @if(in_array(auth()->user()->role, ['pengawas', 'it']))
                         <form action="{{ route('penjualan-bbm.destroy', $item) }}" method="POST" class="d-inline"
                             onsubmit="return confirm('Hapus data ini?')">
                             @csrf @method('DELETE')

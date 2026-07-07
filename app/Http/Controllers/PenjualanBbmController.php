@@ -27,9 +27,10 @@ class PenjualanBbmController extends Controller
 
     public function store(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
             'tanggal'          => 'required|date',
             'shift'            => 'required|in:Pagi,Siang,Malam',
+            'operator_id'      => 'required|exists:users,id',
             'pulau'            => 'required|string|max:10',
             'nozzle'           => 'required|string|max:10',
             'jenis_bbm'        => 'required|in:Pertalite,Pertamax,Solar',
@@ -43,32 +44,41 @@ class PenjualanBbmController extends Controller
             'meter_akhir.gt'            => 'Meter akhir harus lebih besar dari meter awal.',
             'foto_meter_awal.required'  => 'Foto meter awal wajib diupload.',
             'foto_meter_akhir.required' => 'Foto meter akhir wajib diupload.',
+            'operator_id.required'      => 'Pilih operator yang bertugas.',
         ]);
+
+        // Validasi ketat: operator yang dipilih harus benar-benar tercatat
+        // hadir pada tanggal & shift ini - jangan percaya isi dropdown begitu
+        // saja karena request bisa dimanipulasi langsung (mis. lewat curl/Postman).
+        $absensi = Absensis::where('user_id', $validated['operator_id'])
+            ->whereDate('tanggal', $validated['tanggal'])
+            ->where('shift', $validated['shift'])
+            ->where('status_hadir', 'hadir')
+            ->first();
+
+        if (!$absensi) {
+            return back()
+                ->withErrors(['operator_id' => 'Belum ada petugas yang absen hadir di tanggal & shift ini. Penjualan hanya bisa diinput untuk petugas yang sudah tercatat hadir.'])
+                ->withInput();
+        }
 
         $fotoAwal  = $request->file('foto_meter_awal')->store('penjualan/meter', 'public');
         $fotoAkhir = $request->file('foto_meter_akhir')->store('penjualan/meter', 'public');
 
-        // Operator = petugas yang sedang login; absensis_id diambil dari sesi
-        // presensinya pada tanggal & shift yang sama (kalau ada)
-        $absensisId = Absensis::where('user_id', auth()->id())
-            ->whereDate('tanggal', $request->tanggal)
-            ->where('shift', $request->shift)
-            ->value('id');
-
         $penjualan = PenjualanBbm::create([
-            'tanggal'           => $request->tanggal,
-            'shift'             => $request->shift,
-            'absensis_id'       => $absensisId,
-            'pulau'             => $request->pulau,
-            'nozzle'            => $request->nozzle,
-            'jenis_bbm'         => $request->jenis_bbm,
-            'coa_pendapatan_id' => PenjualanBbm::coaByJenisBbm($request->jenis_bbm),
-            'meter_awal'        => $request->meter_awal,
-            'meter_akhir'       => $request->meter_akhir,
-            'harga_per_liter'   => $request->harga_per_liter,
+            'tanggal'           => $validated['tanggal'],
+            'shift'             => $validated['shift'],
+            'absensis_id'       => $absensi->id,
+            'pulau'             => $validated['pulau'],
+            'nozzle'            => $validated['nozzle'],
+            'jenis_bbm'         => $validated['jenis_bbm'],
+            'coa_pendapatan_id' => PenjualanBbm::coaByJenisBbm($validated['jenis_bbm']),
+            'meter_awal'        => $validated['meter_awal'],
+            'meter_akhir'       => $validated['meter_akhir'],
+            'harga_per_liter'   => $validated['harga_per_liter'],
             'foto_meter_awal'   => $fotoAwal,
             'foto_meter_akhir'  => $fotoAkhir,
-            'catatan'           => $request->catatan,
+            'catatan'           => $validated['catatan'] ?? null,
             'dicatat_oleh'      => auth()->id(),
         ]);
 
@@ -78,6 +88,27 @@ class PenjualanBbmController extends Controller
             ->with('success', 'Data penjualan berhasil disimpan.');
     }
 
+    // AJAX: daftar petugas yang tercatat hadir pada tanggal & shift tertentu,
+    // dipakai untuk mengisi dropdown operator di form create secara dinamis.
+    public function operatorTersedia(Request $request)
+    {
+        $validated = $request->validate([
+            'tanggal' => 'required|date',
+            'shift'   => 'required|in:Pagi,Siang,Malam',
+        ]);
+
+        $operators = Absensis::with('user')
+            ->whereDate('tanggal', $validated['tanggal'])
+            ->where('shift', $validated['shift'])
+            ->where('status_hadir', 'hadir')
+            ->whereHas('user', fn ($q) => $q->where('role', 'petugas'))
+            ->get()
+            ->map(fn ($absensi) => ['id' => $absensi->user_id, 'name' => $absensi->user->name])
+            ->values();
+
+        return response()->json($operators);
+    }
+
     public function show(PenjualanBbm $penjualanBbm)
     {
         return view('penjualan-bbm.show', compact('penjualanBbm'));
@@ -85,10 +116,6 @@ class PenjualanBbmController extends Controller
 
     public function destroy(PenjualanBbm $penjualanBbm)
     {
-        if ($penjualanBbm->dicatat_oleh !== auth()->id() && auth()->user()->role !== 'it') {
-            abort(403, 'Anda hanya bisa menghapus data penjualan milik sendiri.');
-        }
-
         if ($penjualanBbm->foto_meter_awal) {
             Storage::disk('public')->delete($penjualanBbm->foto_meter_awal);
         }

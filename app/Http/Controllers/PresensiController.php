@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Absensis;
 use App\Models\ShiftMaster;
-use Illuminate\Http\Request;
 
 class PresensiController extends Controller
 {
@@ -12,6 +11,7 @@ class PresensiController extends Controller
     public function index()
     {
         $userId = auth()->id();
+        $shiftDefault = auth()->user()->shift_default;
 
         $sesiTerbuka = Absensis::where('user_id', $userId)
             ->where('status_hadir', 'hadir')
@@ -28,18 +28,21 @@ class PresensiController extends Controller
             ->take(30)
             ->get();
 
-        $shiftMaster = ShiftMaster::orderBy('jam_mulai')->get();
+        $shiftMaster = $shiftDefault
+            ? ShiftMaster::where('shift', $shiftDefault)->first()
+            : null;
 
         return view('presensi.index', compact('sesiTerbuka', 'absenHariIni', 'riwayat', 'shiftMaster'));
     }
 
-    public function absenMasuk(Request $request)
+    public function absenMasuk()
     {
         $userId = auth()->id();
+        $shift = auth()->user()->shift_default;
 
-        $validated = $request->validate([
-            'shift' => 'required|in:Pagi,Siang,Malam',
-        ]);
+        if (!$shift) {
+            return back()->withErrors(['shift' => 'Shift Anda belum diatur. Hubungi pengawas untuk mengatur jadwal shift Anda.']);
+        }
 
         $sesiTerbuka = Absensis::where('user_id', $userId)
             ->where('status_hadir', 'hadir')
@@ -61,7 +64,7 @@ class PresensiController extends Controller
 
         $jamMasuk = now();
         $menitTelat = 0;
-        $shiftMaster = ShiftMaster::where('shift', $validated['shift'])->first();
+        $shiftMaster = ShiftMaster::where('shift', $shift)->first();
 
         if ($shiftMaster) {
             $menitTelat = Absensis::hitungMenitTelat($shiftMaster, $jamMasuk->copy()->startOfDay(), $jamMasuk->format('H:i:s'));
@@ -70,7 +73,7 @@ class PresensiController extends Controller
         Absensis::create([
             'user_id'      => $userId,
             'tanggal'      => today(),
-            'shift'        => $validated['shift'],
+            'shift'        => $shift,
             'status_hadir' => 'hadir',
             'jam_masuk'    => $jamMasuk->format('H:i:s'),
             'menit_telat'  => $menitTelat,

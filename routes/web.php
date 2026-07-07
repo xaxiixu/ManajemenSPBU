@@ -55,10 +55,12 @@ Route::middleware('auth')->group(function () {
         Route::post('/lembur', [LemburController::class, 'store'])->name('lembur.store');
     });
 
-    // ── Petugas: input penjualan BBM milik sendiri ────
-    Route::middleware('role:petugas')->group(function () {
-        Route::resource('penjualan-bbm', PenjualanBbmController::class)
-            ->except(['index', 'show', 'edit', 'update']);
+    // ── Pengawas & IT: input + hapus penjualan BBM ────
+    Route::middleware('role:pengawas')->group(function () {
+        Route::get('/penjualan-bbm/create', [PenjualanBbmController::class, 'create'])->name('penjualan-bbm.create');
+        Route::get('/penjualan-bbm/operator-tersedia', [PenjualanBbmController::class, 'operatorTersedia'])->name('penjualan-bbm.operator-tersedia');
+        Route::post('/penjualan-bbm', [PenjualanBbmController::class, 'store'])->name('penjualan-bbm.store');
+        Route::delete('/penjualan-bbm/{penjualanBbm}', [PenjualanBbmController::class, 'destroy'])->name('penjualan-bbm.destroy');
     });
 
     // ── Pengawas: input pengeluaran operasional ───────
@@ -72,8 +74,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/pengeluaran/{pengeluaran}', [PengeluaranController::class, 'show'])->name('pengeluaran.show');
     });
 
-    // ── Lihat penjualan BBM: pengawas, manager, petugas ─
-    Route::middleware('role:pengawas,manager,petugas')->group(function () {
+    // ── Lihat penjualan BBM: pengawas, manager (bukan petugas) ─
+    Route::middleware('role:pengawas,manager')->group(function () {
         Route::get('/penjualan-bbm', [PenjualanBbmController::class, 'index'])->name('penjualan-bbm.index');
         Route::get('/penjualan-bbm/{penjualanBbm}', [PenjualanBbmController::class, 'show'])->name('penjualan-bbm.show');
     });

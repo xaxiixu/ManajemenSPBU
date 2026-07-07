@@ -50,27 +50,28 @@ $statusInfo = [
                             @if($absenHariIni->jam_keluar) / keluar {{ $absenHariIni->jam_keluar }} @endif
                         @endif
                     </p>
+                @elseif(!auth()->user()->shift_default)
+                    <div class="alert alert-warning mb-0">
+                        <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                        Shift Anda belum diatur. Hubungi pengawas untuk mengatur jadwal shift Anda.
+                    </div>
                 @else
+                    <p class="mb-3">
+                        Shift Anda: <strong>{{ auth()->user()->shift_default }}</strong>
+                        @if($shiftMaster)
+                            ({{ substr($shiftMaster->jam_mulai, 0, 5) }}-{{ substr($shiftMaster->jam_selesai, 0, 5) }})
+                        @endif
+                    </p>
                     <form method="POST" action="{{ route('presensi.absen-masuk') }}">
                         @csrf
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold">Shift</label>
-                            <select name="shift" class="form-select" required>
-                                <option value="">-- Pilih Shift --</option>
-                                @foreach(['Pagi', 'Siang', 'Malam'] as $s)
-                                <option value="{{ $s }}" {{ old('shift', auth()->user()->shift_default) == $s ? 'selected' : '' }}>
-                                    {{ $s }}
-                                    @php($sm = $shiftMaster->firstWhere('shift', $s))
-                                    @if($sm) ({{ substr($sm->jam_mulai, 0, 5) }}-{{ substr($sm->jam_selesai, 0, 5) }}) @endif
-                                </option>
-                                @endforeach
-                            </select>
-                            @error('shift')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
-                        </div>
                         <button type="submit" class="btn btn-danger">
                             <i class="bi bi-box-arrow-in-right me-1"></i>Absen Masuk
                         </button>
                     </form>
+                    <p class="text-muted small mt-2 mb-0">
+                        Ingin ubah shift? Ajukan lewat
+                        <a href="{{ route('pengajuan-shift.index') }}">Pengajuan Shift</a>.
+                    </p>
                 @endif
                 @error('presensi')<div class="text-danger small mt-2">{{ $message }}</div>@enderror
             </div>

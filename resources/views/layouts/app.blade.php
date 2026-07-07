@@ -392,12 +392,6 @@
             </a>
         </div>
         <div class="nav-item">
-            <a href="{{ route('penjualan-bbm.index') }}"
-                class="{{ request()->routeIs('penjualan-bbm.*') ? 'active' : '' }}">
-                <i class="bi bi-fuel-pump"></i> Penjualan BBM
-            </a>
-        </div>
-        <div class="nav-item">
             <a href="{{ route('pengajuan-shift.index') }}"
                 class="{{ request()->routeIs('pengajuan-shift.*') ? 'active' : '' }}">
                 <i class="bi bi-arrow-repeat"></i> Pengajuan Shift
@@ -414,6 +408,12 @@
         {{-- OPERASIONAL: pengawas/manager/it --}}
         @if(in_array($role, ['it', 'manager', 'pengawas']))
         <div class="nav-section-label mt-2">Operasional</div>
+        <div class="nav-item">
+            <a href="{{ route('penjualan-bbm.index') }}"
+                class="{{ request()->routeIs('penjualan-bbm.*') ? 'active' : '' }}">
+                <i class="bi bi-fuel-pump"></i> Penjualan BBM
+            </a>
+        </div>
         <div class="nav-item">
             <a href="{{ route('pengeluaran.index') }}"
                 class="{{ request()->routeIs('pengeluaran.*') ? 'active' : '' }}">

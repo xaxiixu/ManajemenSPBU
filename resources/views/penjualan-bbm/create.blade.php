@@ -19,16 +19,25 @@
             <div class="card-body">
                 <div class="mb-3">
                     <label class="form-label fw-semibold">Tanggal</label>
-                    <input type="date" name="tanggal" class="form-control" value="{{ date('Y-m-d') }}" required>
+                    <input type="date" name="tanggal" id="tanggalInput" class="form-control"
+                        value="{{ old('tanggal', date('Y-m-d')) }}" required>
                 </div>
                 <div class="mb-3">
                     <label class="form-label fw-semibold">Shift</label>
-                    <select name="shift" class="form-select" required>
+                    <select name="shift" id="shiftSelect" class="form-select" required>
                         <option value="">-- Pilih Shift --</option>
-                        <option value="Pagi">Pagi</option>
-                        <option value="Siang">Siang</option>
-                        <option value="Malam">Malam</option>
+                        @foreach(['Pagi', 'Siang', 'Malam'] as $s)
+                        <option value="{{ $s }}" {{ old('shift') === $s ? 'selected' : '' }}>{{ $s }}</option>
+                        @endforeach
                     </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Operator (Petugas Hadir)</label>
+                    <select name="operator_id" id="operatorSelect" class="form-select" required disabled>
+                        <option value="">-- Pilih tanggal & shift dulu --</option>
+                    </select>
+                    <small id="operatorHelp" class="text-muted"></small>
+                    @error('operator_id')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
                 </div>
                 <div class="row">
                     <div class="col-6 mb-3">
@@ -119,6 +128,61 @@
 
 @push('scripts')
 <script>
+    const tanggalInput   = document.getElementById('tanggalInput');
+    const shiftSelect    = document.getElementById('shiftSelect');
+    const operatorSelect = document.getElementById('operatorSelect');
+    const operatorHelp   = document.getElementById('operatorHelp');
+    const oldOperatorId  = '{{ old('operator_id') }}';
+
+    async function muatOperator(preselectOld = false) {
+        const tanggal = tanggalInput.value;
+        const shift = shiftSelect.value;
+
+        operatorHelp.textContent = '';
+        operatorHelp.classList.remove('text-danger');
+
+        if (!tanggal || !shift) {
+            operatorSelect.innerHTML = '<option value="">-- Pilih tanggal & shift dulu --</option>';
+            operatorSelect.disabled = true;
+            return;
+        }
+
+        operatorSelect.innerHTML = '<option value="">Memuat...</option>';
+        operatorSelect.disabled = true;
+
+        try {
+            const url = '{{ route('penjualan-bbm.operator-tersedia') }}?tanggal=' + encodeURIComponent(tanggal) + '&shift=' + encodeURIComponent(shift);
+            const res = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+            const operators = await res.json();
+
+            if (!operators.length) {
+                operatorSelect.innerHTML = '<option value="">-- Tidak ada petugas hadir --</option>';
+                operatorHelp.textContent = 'Belum ada petugas yang absen hadir di tanggal & shift ini. Penjualan hanya bisa diinput untuk petugas yang sudah tercatat hadir.';
+                operatorHelp.classList.add('text-danger');
+                operatorSelect.disabled = true;
+                return;
+            }
+
+            operatorSelect.innerHTML = '<option value="">-- Pilih Operator --</option>' +
+                operators.map(o => `<option value="${o.id}">${o.name}</option>`).join('');
+            operatorSelect.disabled = false;
+
+            if (preselectOld && oldOperatorId) {
+                operatorSelect.value = oldOperatorId;
+            }
+        } catch (e) {
+            operatorSelect.innerHTML = '<option value="">Gagal memuat data operator</option>';
+            operatorSelect.disabled = true;
+        }
+    }
+
+    tanggalInput.addEventListener('change', () => muatOperator(false));
+    shiftSelect.addEventListener('change', () => muatOperator(false));
+
+    if (tanggalInput.value && shiftSelect.value) {
+        muatOperator(true);
+    }
+
     function updatePreview() {
         const awal  = parseFloat(document.getElementById('meterAwal').value) || 0;
         const akhir = parseFloat(document.getElementById('meterAkhir').value) || 0;
