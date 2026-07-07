@@ -13,13 +13,18 @@ class PetugasController extends Controller
     {
         $petugas = User::where('role', 'petugas')->orderBy('name')->get();
 
+        // Tanggal operasional (bukan kalender polos) - supaya konsisten dengan
+        // Dashboard: kalau shift Malam kemarin masih berlangsung lewat tengah
+        // malam, "hadir hari ini" tetap merujuk ke tanggal shift itu.
+        $tanggalOperasional = ShiftMaster::tanggalOperasionalSaatIni();
+
         $hadirHariIni = Absensis::with('user')
-            ->whereDate('tanggal', today())
+            ->whereDate('tanggal', $tanggalOperasional['tanggal'])
             ->where('status_hadir', 'hadir')
             ->get()
             ->groupBy('shift');
 
-        return view('petugas.index', compact('petugas', 'hadirHariIni'));
+        return view('petugas.index', compact('petugas', 'hadirHariIni', 'tanggalOperasional'));
     }
 
     public function show($id)

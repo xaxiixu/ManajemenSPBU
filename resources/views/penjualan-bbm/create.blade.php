@@ -19,6 +19,15 @@
 </div>
 @endif
 
+@if ($tanggalOperasional['lintas_tengah_malam'])
+<div class="alert alert-warning">
+    <i class="bi bi-moon-stars-fill me-1"></i>
+    Saat ini masih berlangsung <strong>Shift {{ $tanggalOperasional['shift_aktif'] }}</strong> yang dimulai kemarin
+    (<strong>{{ $tanggalOperasional['tanggal']->format('d/m/Y') }}</strong>).
+    Jika mencatat transaksi shift tersebut, pilih Tanggal <strong>{{ $tanggalOperasional['tanggal']->format('d/m/Y') }}</strong>, bukan hari ini.
+</div>
+@endif
+
 <form action="{{ route('penjualan-bbm.store') }}" method="POST" enctype="multipart/form-data">
 @csrf
 <div class="row g-3">

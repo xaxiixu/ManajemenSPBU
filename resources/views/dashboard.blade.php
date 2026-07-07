@@ -4,6 +4,14 @@
 
 @section('content')
 
+@if ($tanggalOperasional['lintas_tengah_malam'])
+<div class="alert alert-warning">
+    <i class="bi bi-moon-stars-fill me-1"></i>
+    Masih dalam Shift {{ $tanggalOperasional['shift_aktif'] }} yang dimulai kemarin — statistik "hari ini" di bawah
+    ini merujuk ke tanggal <strong>{{ $tanggalOperasional['tanggal']->format('d/m/Y') }}</strong>, bukan tanggal kalender sekarang.
+</div>
+@endif
+
 {{-- Stat Cards Hari Ini --}}
 <div class="row g-3 mb-4">
     <div class="col-6 col-md-3">

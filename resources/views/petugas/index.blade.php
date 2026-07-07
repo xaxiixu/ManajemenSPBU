@@ -15,6 +15,14 @@
     @endif
 </div>
 
+@if ($tanggalOperasional['lintas_tengah_malam'])
+<div class="alert alert-warning">
+    <i class="bi bi-moon-stars-fill me-1"></i>
+    Masih dalam Shift {{ $tanggalOperasional['shift_aktif'] }} yang dimulai kemarin — data "hari ini" di bawah
+    ini merujuk ke tanggal <strong>{{ $tanggalOperasional['tanggal']->format('d/m/Y') }}</strong>, bukan tanggal kalender sekarang.
+</div>
+@endif
+
 {{-- Hadir per shift hari ini --}}
 <div class="row g-3 mb-3">
     @foreach(['Pagi', 'Siang', 'Malam'] as $shift)

@@ -7,17 +7,24 @@ use App\Models\Pengeluaran;
 use App\Models\Absensis;
 use App\Models\JurnalDetail;
 use App\Models\Coa;
+use App\Models\ShiftMaster;
 use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
     public function index()
     {
-        // ── Hari ini ─────────────────────────────────
-        $penjualanHariIni = PenjualanBbm::whereDate('tanggal', today())->sum('total_penjualan');
-        $pengeluaranHariIni = Pengeluaran::whereDate('tanggal', today())->sum('jumlah');
+        // ── Hari ini (pakai tanggal operasional, bukan kalender polos) ──
+        // Penjualan/pengeluaran/petugas hadir dicatat dengan tanggal shift-nya
+        // (sama seperti absensi) - kalau shift Malam kemarin masih berlangsung
+        // lewat tengah malam, statistik "hari ini" harus tetap merujuk ke
+        // tanggal shift itu, bukan tanggal kalender yang sudah berganti.
+        $tanggalOperasional = ShiftMaster::tanggalOperasionalSaatIni();
+
+        $penjualanHariIni = PenjualanBbm::whereDate('tanggal', $tanggalOperasional['tanggal'])->sum('total_penjualan');
+        $pengeluaranHariIni = Pengeluaran::whereDate('tanggal', $tanggalOperasional['tanggal'])->sum('jumlah');
         $labaHariIni = $penjualanHariIni - $pengeluaranHariIni;
-        $petugasHadir = Absensis::whereDate('tanggal', today())
+        $petugasHadir = Absensis::whereDate('tanggal', $tanggalOperasional['tanggal'])
             ->where('status_hadir', 'hadir')->count();
 
         // ── Bulan ini ─────────────────────────────────
@@ -61,7 +68,7 @@ class DashboardController extends Controller
             ->latest('tanggal')->take(5)->get();
 
         return view('dashboard', compact(
-            'penjualanHariIni', 'pengeluaranHariIni', 'labaHariIni', 'petugasHadir',
+            'penjualanHariIni', 'pengeluaranHariIni', 'labaHariIni', 'petugasHadir', 'tanggalOperasional',
             'penjualanBulanIni', 'pengeluaranBulanIni', 'labaBulanIni',
             'grafikLabels', 'grafikData', 'perJenis', 'transaksiTerbaru'
         ));

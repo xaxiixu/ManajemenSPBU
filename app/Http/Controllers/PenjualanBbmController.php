@@ -6,6 +6,7 @@ use App\Services\JurnalService;
 use App\Models\PenjualanBbm;
 use App\Models\Absensis;
 use App\Models\MasterBbm;
+use App\Models\ShiftMaster;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -43,7 +44,12 @@ class PenjualanBbmController extends Controller
     {
         $jenisBbmOptions = MasterBbm::where('is_aktif', 1)->orderBy('jenis_bbm')->get();
 
-        return view('penjualan-bbm.create', compact('jenisBbmOptions'));
+        // Hint (bukan auto-fill): kalau saat ini masih ekor shift Malam yang
+        // dimulai kemarin, ingatkan pengawas supaya pilih tanggal kemarin -
+        // tanggal & shift tetap wajib diisi manual.
+        $tanggalOperasional = ShiftMaster::tanggalOperasionalSaatIni();
+
+        return view('penjualan-bbm.create', compact('jenisBbmOptions', 'tanggalOperasional'));
     }
 
     public function store(Request $request)
