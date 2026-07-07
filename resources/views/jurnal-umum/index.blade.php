@@ -14,17 +14,34 @@
 <div class="card mb-3">
     <div class="card-body">
         <form method="GET" class="row g-2 align-items-end">
+            <div class="col-md-2">
+                <label class="form-label fw-semibold">Dari Tanggal</label>
+                <input type="date" name="dari" class="form-control" value="{{ $dari }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label fw-semibold">Sampai Tanggal</label>
+                <input type="date" name="sampai" class="form-control" value="{{ $sampai }}">
+            </div>
             <div class="col-md-3">
-                <label class="form-label fw-semibold">Filter Bulan</label>
+                <label class="form-label fw-semibold">Atau Pilih Bulan</label>
                 <input type="month" name="bulan" class="form-control" value="{{ $bulan }}">
             </div>
             <div class="col-md-2">
-                <button type="submit" class="btn btn-danger w-100">Filter</button>
+                <label class="form-label fw-semibold">&nbsp;</label>
+                <button type="submit" class="btn btn-danger w-100">
+                    <i class="bi bi-search me-1"></i> Filter
+                </button>
             </div>
             <div class="col-md-2">
-                <a href="{{ route('jurnal-umum.index') }}" class="btn btn-outline-secondary w-100">Reset</a>
+                <label class="form-label fw-semibold">&nbsp;</label>
+                <a href="{{ route('jurnal-umum.index') }}" class="btn btn-outline-secondary w-100">
+                    <i class="bi bi-arrow-counterclockwise me-1"></i> Reset
+                </a>
             </div>
         </form>
+        <small class="text-muted mt-2 d-block">
+            <i class="bi bi-info-circle me-1"></i>Jika filter bulan diisi, filter range tanggal akan diabaikan.
+        </small>
     </div>
 </div>
 
@@ -37,8 +54,8 @@
                     <th>Tanggal</th>
                     <th>Keterangan</th>
                     <th>Sumber</th>
-                    <th>Total Debit</th>
-                    <th>Total Kredit</th>
+                    <th class="text-end">Total Debit</th>
+                    <th class="text-end">Total Kredit</th>
                     <th>Aksi</th>
                 </tr>
             </thead>
@@ -57,8 +74,8 @@
                             <span class="badge bg-secondary">Manual</span>
                         @endif
                     </td>
-                    <td>Rp {{ number_format($item->total_debit) }}</td>
-                    <td>Rp {{ number_format($item->total_kredit) }}</td>
+                    <td class="text-end">Rp {{ number_format($item->total_debit) }}</td>
+                    <td class="text-end">Rp {{ number_format($item->total_kredit) }}</td>
                     <td>
                         <a href="{{ route('jurnal-umum.show', $item) }}" class="btn btn-sm btn-outline-primary">
                             <i class="bi bi-eye"></i> Detail

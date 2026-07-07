@@ -299,6 +299,20 @@
             margin-top: 0.15rem;
         }
 
+        .stat-card-link {
+            text-decoration: none;
+            border: 2px solid transparent;
+            transition: border-color .15s, transform .15s;
+        }
+
+        .stat-card-link:hover {
+            border-color: var(--spbu-red-lt);
+        }
+
+        .stat-card-active {
+            border-color: var(--spbu-red);
+        }
+
         /* Badge role */
         .badge-manager  { background: #1a1a2e; color: #fff; }
         .badge-pengawas { background: var(--spbu-red); color: #fff; }
@@ -385,15 +399,20 @@
             </a>
         </div>
 
-        {{-- AKUNTANSI: Manager + IT --}}
+        {{-- MASTER DATA: Manager + IT --}}
         @if(in_array(auth()->user()->role, ['manager', 'it']))
-        <div class="nav-section-label mt-2">Akuntansi</div>
+        <div class="nav-section-label mt-2">Master Data</div>
         <div class="nav-item">
             <a href="{{ route('coa.index') }}"
                 class="{{ request()->routeIs('coa.*') ? 'active' : '' }}">
                 <i class="bi bi-list-columns-reverse"></i> COA
             </a>
         </div>
+        @endif
+
+        {{-- TRANSAKSI: Manager + IT --}}
+        @if(in_array(auth()->user()->role, ['manager', 'it']))
+        <div class="nav-section-label mt-2">Transaksi</div>
         <div class="nav-item">
             <a href="{{ route('jurnal-umum.index') }}"
                 class="{{ request()->routeIs('jurnal-umum.*') ? 'active' : '' }}">

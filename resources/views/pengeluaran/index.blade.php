@@ -19,21 +19,34 @@
 <div class="card mb-3">
     <div class="card-body">
         <form method="GET" class="row g-2 align-items-end">
+            <div class="col-md-2">
+                <label class="form-label fw-semibold">Dari Tanggal</label>
+                <input type="date" name="dari" class="form-control" value="{{ $dari }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label fw-semibold">Sampai Tanggal</label>
+                <input type="date" name="sampai" class="form-control" value="{{ $sampai }}">
+            </div>
             <div class="col-md-3">
-                <label class="form-label fw-semibold">Filter Bulan</label>
+                <label class="form-label fw-semibold">Atau Pilih Bulan</label>
                 <input type="month" name="bulan" class="form-control" value="{{ $bulan }}">
             </div>
-            <div class="col-md-3">
-                <label class="form-label fw-semibold">Filter Tanggal</label>
-                <input type="date" name="tanggal" class="form-control" value="{{ $tanggal }}">
+            <div class="col-md-2">
+                <label class="form-label fw-semibold">&nbsp;</label>
+                <button type="submit" class="btn btn-danger w-100">
+                    <i class="bi bi-search me-1"></i> Filter
+                </button>
             </div>
             <div class="col-md-2">
-                <button type="submit" class="btn btn-danger w-100">Filter</button>
-            </div>
-            <div class="col-md-2">
-                <a href="{{ route('pengeluaran.index') }}" class="btn btn-outline-secondary w-100">Reset</a>
+                <label class="form-label fw-semibold">&nbsp;</label>
+                <a href="{{ route('pengeluaran.index') }}" class="btn btn-outline-secondary w-100">
+                    <i class="bi bi-arrow-counterclockwise me-1"></i> Reset
+                </a>
             </div>
         </form>
+        <small class="text-muted mt-2 d-block">
+            <i class="bi bi-info-circle me-1"></i>Jika filter bulan diisi, filter range tanggal akan diabaikan.
+        </small>
     </div>
 </div>
 
@@ -93,7 +106,10 @@
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="6" class="text-center py-4 text-muted">Belum ada data pengeluaran.</td>
+                    <td colspan="{{ in_array(auth()->user()->role, ['pengawas', 'it']) ? 6 : 5 }}"
+                        class="text-center py-4 text-muted">
+                        Belum ada data pengeluaran untuk periode ini.
+                    </td>
                 </tr>
                 @endforelse
             </tbody>
@@ -102,6 +118,7 @@
 </div>
 
 {{-- Modal Hapus --}}
+@if(in_array(auth()->user()->role, ['pengawas', 'it']))
 <div class="modal fade" id="modalHapus" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -130,6 +147,7 @@
         </div>
     </div>
 </div>
+@endif
 @endsection
 
 @push('scripts')

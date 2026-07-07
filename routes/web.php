@@ -13,6 +13,7 @@ use App\Http\Controllers\LaporanLabaRugiController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\PetugasController;
 
+// ── Auth ─────────────────────────────────────────────
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
     Route::post('/login', [AuthController::class, 'login']);
@@ -21,22 +22,23 @@ Route::middleware('guest')->group(function () {
 Route::post('/logout', [AuthController::class, 'logout'])
     ->middleware('auth')->name('logout');
 
+// ── Authenticated ─────────────────────────────────────
 Route::middleware('auth')->group(function () {
 
     Route::get('/', fn() => redirect()->route('dashboard'));
 
-    // ── Semua role ─────────────────────────────────
+    // ── Semua role ────────────────────────────────────
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/laporan-laba-rugi', [LaporanLabaRugiController::class, 'index'])->name('laporan-laba-rugi.index');
 
-    // ── Pengawas: input operasional ─────────────────
+    // ── Pengawas: input operasional ───────────────────
     Route::middleware('role:pengawas')->group(function () {
         Route::resource('presensi', PresensiController::class)->except(['index', 'show']);
         Route::resource('pengeluaran', PengeluaranController::class)->except(['index', 'show']);
         Route::resource('penjualan-bbm', PenjualanBbmController::class)->except(['index', 'show']);
     });
 
-    // ── Semua role: lihat operasional ──────────────
+    // ── Semua role: lihat operasional ─────────────────
     Route::middleware('role:pengawas,manager')->group(function () {
         Route::get('/presensi', [PresensiController::class, 'index'])->name('presensi.index');
         Route::get('/presensi/{presensi}', [PresensiController::class, 'show'])->name('presensi.show');
@@ -46,23 +48,22 @@ Route::middleware('auth')->group(function () {
         Route::get('/penjualan-bbm/{penjualanBbm}', [PenjualanBbmController::class, 'show'])->name('penjualan-bbm.show');
     });
 
-    // ── Manager & IT: lihat akuntansi ──────────────
+    // ── Manager + IT: akuntansi & master data ─────────
     Route::middleware('role:manager')->group(function () {
-        Route::get('/coa', [CoaController::class, 'index'])->name('coa.index');
-        Route::get('/jurnal-umum', [JurnalUmumController::class, 'index'])->name('jurnal-umum.index');
-        Route::get('/jurnal-umum/{jurnalUmum}', [JurnalUmumController::class, 'show'])->name('jurnal-umum.show');
-        Route::get('/buku-besar', [BukuBesarController::class, 'index'])->name('buku-besar.index');
+        // COA full (manager & IT bisa tambah/edit/hapus)
+        Route::resource('coa', CoaController::class);
+
+        // Jurnal & Buku Besar read only
+        Route::resource('jurnal-umum', JurnalUmumController::class)->only(['index', 'show']);
+        Route::resource('buku-besar', BukuBesarController::class)->only(['index', 'show']);
+
+        // Data Petugas: lihat saja
         Route::get('/petugas', [PetugasController::class, 'index'])->name('petugas.index');
+        Route::get('/petugas/{id}', [PetugasController::class, 'show'])->name('petugas.show');
     });
 
-    // ── IT only: edit akuntansi & pengaturan ───────
+    // ── IT only: pengaturan & manajemen user ──────────
     Route::middleware('role:it')->group(function () {
-        // COA full
-        Route::resource('coa', CoaController::class)->except(['index']);
-
-        // Jurnal (read only, tidak ada edit manual)
-        // Buku Besar (read only)
-
         // Manajemen User
         Route::get('/users', [UserController::class, 'index'])->name('users.index');
         Route::get('/users/create', [UserController::class, 'create'])->name('users.create');
@@ -71,7 +72,7 @@ Route::middleware('auth')->group(function () {
         Route::put('/users/{user}', [UserController::class, 'update'])->name('users.update');
         Route::delete('/users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
 
-        // Data Petugas
+        // Data Petugas full
         Route::get('/petugas/create', [PetugasController::class, 'create'])->name('petugas.create');
         Route::post('/petugas', [PetugasController::class, 'store'])->name('petugas.store');
         Route::get('/petugas/{id}/edit', [PetugasController::class, 'edit'])->name('petugas.edit');

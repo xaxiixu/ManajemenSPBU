@@ -61,7 +61,15 @@
                 </div>
                 <div class="mb-3">
                     <label class="form-label fw-semibold">Harga per Liter (Rp)</label>
-                    <input type="number" name="harga_per_liter" class="form-control" placeholder="cth: 10000" required>
+                    <div class="input-group">
+                        <span class="input-group-text">Rp</span>
+                        <input type="text" id="hargaDisplay" class="form-control"
+                            placeholder="cth: 10.000"
+                            value="{{ old('harga_per_liter') ? number_format(old('harga_per_liter'), 0, ',', '.') : '' }}"
+                            autocomplete="off" required>
+                        <input type="hidden" name="harga_per_liter" id="hargaValue" value="{{ old('harga_per_liter') }}">
+                    </div>
+                    <small class="text-muted">Gunakan titik sebagai pemisah ribuan. Contoh: 10.000</small>
                 </div>
             </div>
         </div>
@@ -122,11 +130,11 @@
 @push('scripts')
 <script>
     function updatePreview() {
-        const awal   = parseFloat(document.getElementById('meterAwal').value) || 0;
-        const akhir  = parseFloat(document.getElementById('meterAkhir').value) || 0;
-        const harga  = parseFloat(document.querySelector('[name=harga_per_liter]').value) || 0;
-        const liter  = akhir - awal;
-        const total  = liter * harga;
+        const awal  = parseFloat(document.getElementById('meterAwal').value) || 0;
+        const akhir = parseFloat(document.getElementById('meterAkhir').value) || 0;
+        const harga = parseFloat(document.getElementById('hargaValue').value) || 0;
+        const liter = akhir - awal;
+        const total = liter * harga;
 
         document.getElementById('previewLiter').textContent =
             liter > 0 ? liter.toLocaleString('id-ID') + ' L' : '— L';
@@ -136,6 +144,19 @@
 
     document.getElementById('meterAwal').addEventListener('input', updatePreview);
     document.getElementById('meterAkhir').addEventListener('input', updatePreview);
-    document.querySelector('[name=harga_per_liter]').addEventListener('input', updatePreview);
+
+    const hargaDisplay = document.getElementById('hargaDisplay');
+    const hargaValue   = document.getElementById('hargaValue');
+
+    hargaDisplay.addEventListener('input', function () {
+        let raw = this.value.replace(/\D/g, '');
+        this.value = raw.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        hargaValue.value = raw;
+        updatePreview(); // ← trigger preview setelah harga diupdate
+    });
+
+    hargaDisplay.closest('form').addEventListener('submit', function () {
+        hargaValue.value = hargaDisplay.value.replace(/\D/g, '');
+    });
 </script>
 @endpush

@@ -21,10 +21,20 @@
                 <label class="form-label fw-semibold">Kategori Pengeluaran</label>
                 <select name="coa_id" class="form-select" required>
                     <option value="">-- Pilih Kategori --</option>
-                    @foreach($coa as $c)
-                    <option value="{{ $c->id }}" {{ $pengeluaran->coa_id == $c->id ? 'selected' : '' }}>
-                        {{ $c->kode_akun }} — {{ $c->nama_akun }}
-                    </option>
+                    @foreach($coa as $item)
+                        @if($item->children->count() > 0)
+                        <optgroup label="{{ $item->kode_akun }} — {{ $item->nama_akun }}">
+                            @foreach($item->children as $child)
+                            <option value="{{ $child->id }}" {{ old('coa_id', $pengeluaran->coa_id) == $child->id ? 'selected' : '' }}>
+                                {{ $child->kode_akun }} — {{ $child->nama_akun }}
+                            </option>
+                            @endforeach
+                        </optgroup>
+                        @else
+                        <option value="{{ $item->id }}" {{ old('coa_id', $pengeluaran->coa_id) == $item->id ? 'selected' : '' }}>
+                            {{ $item->kode_akun }} — {{ $item->nama_akun }}
+                        </option>
+                        @endif
                     @endforeach
                 </select>
             </div>
@@ -35,8 +45,16 @@
             </div>
             <div class="mb-3">
                 <label class="form-label fw-semibold">Jumlah (Rp)</label>
-                <input type="number" name="jumlah" class="form-control"
-                    value="{{ old('jumlah', $pengeluaran->jumlah) }}" required>
+                <div class="input-group">
+                    <span class="input-group-text">Rp</span>
+                    <input type="text" id="jumlahDisplay" class="form-control"
+                        placeholder="cth: 500.000"
+                        value="{{ number_format(old('jumlah', $pengeluaran->jumlah), 0, ',', '.') }}"
+                        autocomplete="off" required>
+                    <input type="hidden" name="jumlah" id="jumlahValue"
+                        value="{{ old('jumlah', $pengeluaran->jumlah) }}">
+                </div>
+                <small class="text-muted">Gunakan titik sebagai pemisah ribuan. Contoh: 500.000 atau 1.500.000</small>
             </div>
             <div class="mb-4">
                 <label class="form-label fw-semibold">Bukti Pembayaran</label>
@@ -56,4 +74,24 @@
         </form>
     </div>
 </div>
+@push('scripts')
+<script>
+const display = document.getElementById('jumlahDisplay');
+const hidden  = document.getElementById('jumlahValue');
+
+display.addEventListener('input', function () {
+    // Hapus semua karakter selain angka
+    let raw = this.value.replace(/\D/g, '');
+    // Format dengan titik
+    this.value = raw.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    // Simpan nilai asli ke hidden field
+    hidden.value = raw;
+});
+
+// Pastikan saat submit, nilai hidden terisi
+display.closest('form').addEventListener('submit', function () {
+    hidden.value = display.value.replace(/\D/g, '');
+});
+</script>
+@endpush
 @endsection

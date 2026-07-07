@@ -12,9 +12,19 @@ class Coa extends Model
     protected $table = 'coa';
 
     protected $fillable = [
-        'kode_akun', 'nama_akun', 'kategori',
+        'kode_akun', 'parent_id', 'nama_akun', 'kategori',
         'posisi_normal', 'deskripsi', 'is_aktif',
     ];
+
+    public function parent()
+    {
+        return $this->belongsTo(Coa::class, 'parent_id');
+    }
+
+    public function children()
+    {
+        return $this->hasMany(Coa::class, 'parent_id')->orderBy('kode_akun');
+    }
 
     public function penjualanBbm()
     {

@@ -9,15 +9,22 @@ class JurnalUmumController extends Controller
 {
     public function index(Request $request)
     {
-        $bulan = $request->bulan ?? now()->format('Y-m');
+        $bulan = $request->bulan;
+
+        if ($bulan) {
+            $dari   = \Carbon\Carbon::parse($bulan . '-01')->startOfMonth()->toDateString();
+            $sampai = \Carbon\Carbon::parse($bulan . '-01')->endOfMonth()->toDateString();
+        } else {
+            $dari   = $request->dari   ?? today()->startOfMonth()->toDateString();
+            $sampai = $request->sampai ?? today()->toDateString();
+        }
 
         $data = JurnalUmum::with(['details.coa', 'dibuatOleh'])
-            ->whereYear('tanggal', substr($bulan, 0, 4))
-            ->whereMonth('tanggal', substr($bulan, 5, 2))
+            ->whereBetween('tanggal', [$dari, $sampai])
             ->latest('tanggal')
             ->get();
 
-        return view('jurnal-umum.index', compact('data', 'bulan'));
+        return view('jurnal-umum.index', compact('data', 'dari', 'sampai', 'bulan'));
     }
 
     public function show(JurnalUmum $jurnalUmum)

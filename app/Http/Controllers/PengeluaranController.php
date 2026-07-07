@@ -4,43 +4,42 @@ namespace App\Http\Controllers;
 
 use App\Models\Pengeluaran;
 use App\Models\Coa;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
-use App\Services\JurnalService;
+    use Illuminate\Http\Request;
+    use Illuminate\Support\Facades\Storage;
+    use App\Services\JurnalService;
 
-class PengeluaranController extends Controller
-{
-    public function index(Request $request)
+    class PengeluaranController extends Controller
     {
-        $tanggal = $request->tanggal;
-        $bulan   = $request->bulan ?? now()->format('Y-m');
+        public function index(Request $request)
+        {
+            $bulan = $request->bulan;
 
-        $query = Pengeluaran::with('coa');
+            if ($bulan) {
+                $dari   = \Carbon\Carbon::parse($bulan . '-01')->startOfMonth()->toDateString();
+                $sampai = \Carbon\Carbon::parse($bulan . '-01')->endOfMonth()->toDateString();
+            } else {
+                $dari   = $request->dari   ?? today()->startOfMonth()->toDateString();
+                $sampai = $request->sampai ?? today()->toDateString();
+            }
 
-        if ($tanggal) {
-            $query->whereDate('tanggal', $tanggal);
-        } else {
-            $query->whereYear('tanggal', substr($bulan, 0, 4))
-                  ->whereMonth('tanggal', substr($bulan, 5, 2));
+            $data  = Pengeluaran::with('coa')
+                ->whereBetween('tanggal', [$dari, $sampai])
+                ->latest('tanggal')
+                ->get();
+
+            $total = $data->sum('jumlah');
+
+            return view('pengeluaran.index', compact('data', 'total', 'dari', 'sampai', 'bulan'));
         }
 
-        $data  = $query->latest('tanggal')->get();
-        $total = $data->sum('jumlah');
+        public function create()
+        {
+            $coa = $this->bebanCoaOptions();
 
-        return view('pengeluaran.index', compact('data', 'total', 'tanggal', 'bulan'));
-    }
+            return view('pengeluaran.create', compact('coa'));
+        }
 
-    public function create()
-    {
-        $coa = Coa::where('kategori', 'beban')
-            ->where('is_aktif', 1)
-            ->orderBy('kode_akun')
-            ->get();
-
-        return view('pengeluaran.create', compact('coa'));
-    }
-
-    public function store(Request $request)
+        public function store(Request $request)
         {
             $request->validate([
                 'tanggal'          => 'required|date',
@@ -70,19 +69,30 @@ class PengeluaranController extends Controller
                 ->with('success', 'Data pengeluaran berhasil disimpan.');
         }
 
-    public function show(Pengeluaran $pengeluaran)
-    {
-        return view('pengeluaran.show', compact('pengeluaran'));
-    }
+        public function show(Pengeluaran $pengeluaran)
+        {
+            return view('pengeluaran.show', compact('pengeluaran'));
+        }
 
-    public function edit(Pengeluaran $pengeluaran)
+        public function edit(Pengeluaran $pengeluaran)
     {
-        $coa = Coa::where('kategori', 'beban')
-            ->where('is_aktif', 1)
-            ->orderBy('kode_akun')
-            ->get();
+        $coa = $this->bebanCoaOptions();
 
         return view('pengeluaran.edit', compact('pengeluaran', 'coa'));
+    }
+
+    // Akun beban top-level (parent atau standalone) beserta children aktifnya,
+    // agar view bisa menampilkan parent sebagai grup non-selectable dan child terindentasi.
+    private function bebanCoaOptions()
+    {
+        return Coa::where('kategori', 'beban')
+            ->where('is_aktif', 1)
+            ->whereNull('parent_id')
+            ->with(['children' => function ($q) {
+                $q->where('is_aktif', 1)->orderBy('kode_akun');
+            }])
+            ->orderBy('kode_akun')
+            ->get();
     }
 
     public function update(Request $request, Pengeluaran $pengeluaran)
@@ -97,7 +107,6 @@ class PengeluaranController extends Controller
 
         $bukti = $pengeluaran->bukti_pembayaran;
         if ($request->hasFile('bukti_pembayaran')) {
-            // Hapus foto lama hanya kalau ada
             if ($bukti) {
                 Storage::disk('public')->delete($bukti);
             }

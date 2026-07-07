@@ -11,8 +11,8 @@ class JurnalService
     // Dipanggil saat ada penjualan BBM baru
     public static function dariPenjualan($penjualan): void
     {
-        // Akun Kas (1-1100)
-        $akunKas = Coa::where('kode_akun', '1-1100')->value('id');
+        // Akun Kas (1101)
+        $akunKas = Coa::where('kode_akun', '1101')->value('id');
 
         // Akun Pendapatan sesuai jenis BBM
         $akunPendapatan = $penjualan->coa_pendapatan_id;
@@ -50,8 +50,8 @@ class JurnalService
     // Dipanggil saat ada pengeluaran baru
     public static function dariPengeluaran($pengeluaran): void
     {
-        // Akun Kas (1-1100)
-        $akunKas = Coa::where('kode_akun', '1-1100')->value('id');
+        // Akun Kas (1101)
+        $akunKas = Coa::where('kode_akun', '1101')->value('id');
         $akunBeban = $pengeluaran->coa_id;
 
         if (!$akunKas || !$akunBeban) return;

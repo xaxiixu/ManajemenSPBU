@@ -51,9 +51,9 @@ class PenjualanBbm extends Model
     public static function coaByJenisBbm(string $jenis): ?int
     {
         $map = [
-            'Pertalite' => '4-1100',
-            'Pertamax'  => '4-1200',
-            'Solar'     => '4-1300',
+            'Pertalite' => '4101-1',
+            'Pertamax'  => '4101-2',
+            'Solar'     => '4101-3',
         ];
         $kode = $map[$jenis] ?? null;
         return $kode ? Coa::where('kode_akun', $kode)->value('id') : null;

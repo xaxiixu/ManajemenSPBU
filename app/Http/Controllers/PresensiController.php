@@ -10,17 +10,27 @@ class PresensiController extends Controller
 {
     public function index(Request $request)
     {
-        $tanggal = $request->tanggal ?? today()->toDateString();
-        $shift   = $request->shift;
+        $bulan  = $request->bulan;
+        $shift  = $request->shift;
+
+        if ($bulan) {
+            // Filter pakai bulan
+            $dari   = \Carbon\Carbon::parse($bulan . '-01')->startOfMonth()->toDateString();
+            $sampai = \Carbon\Carbon::parse($bulan . '-01')->endOfMonth()->toDateString();
+        } else {
+            // Filter pakai range tanggal
+            $dari   = $request->dari   ?? today()->toDateString();
+            $sampai = $request->sampai ?? today()->toDateString();
+        }
 
         $query = Absensis::with('petugas')
-            ->whereDate('tanggal', $tanggal);
+            ->whereBetween('tanggal', [$dari, $sampai]);
 
         if ($shift) {
             $query->where('shift', $shift);
         }
 
-        $data = $query->orderBy('shift')->get();
+        $data = $query->orderBy('tanggal')->orderBy('shift')->get();
 
         $ringkasan = [
             'hadir'       => $data->where('status_hadir', 'hadir')->count(),
@@ -29,7 +39,7 @@ class PresensiController extends Controller
             'tidak_hadir' => $data->where('status_hadir', 'tidak_hadir')->count(),
         ];
 
-        return view('presensi.index', compact('data', 'tanggal', 'shift', 'ringkasan'));
+        return view('presensi.index', compact('data', 'dari', 'sampai', 'bulan', 'shift', 'ringkasan'));
     }
 
     public function create()
