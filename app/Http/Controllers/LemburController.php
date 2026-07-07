@@ -134,7 +134,23 @@ class LemburController extends Controller
     private function validateForm(Request $request): array
     {
         $validated = $request->validate([
-            'tanggal'     => 'required|date|after_or_equal:today',
+            'tanggal'     => [
+                'required',
+                'date',
+                // BUKAN after_or_equal:today literal - today() adalah tanggal
+                // kalender, tapi tanggal lembur mengikuti tanggal OPERASIONAL
+                // absensi (shift lintas tengah malam bisa "milik" kemarin
+                // walau kalender sudah berganti hari). Validasi utama yang
+                // sebenarnya penting adalah absensi hadir wajib ada (dicek di
+                // bawah) - rule ini cuma jaring pengaman longgar supaya tidak
+                // bisa mengajukan lembur untuk tanggal yang terlalu lampau.
+                function ($attribute, $value, $fail) {
+                    $batasMundur = ShiftMaster::tanggalOperasionalSaatIni()['tanggal']->copy()->subDays(2);
+                    if (Carbon::parse($value)->lessThan($batasMundur)) {
+                        $fail('Tanggal lembur tidak boleh lebih dari 2 hari yang lalu.');
+                    }
+                },
+            ],
             'jam_selesai' => 'required|date_format:H:i',
             'alasan'      => 'required|string|max:255',
         ]);
@@ -152,23 +168,24 @@ class LemburController extends Controller
 
         $jamMulai = $jamMulaiInfo['jam_mulai'];
 
-        if ($validated['jam_selesai'] === $jamMulai) {
-            throw ValidationException::withMessages([
-                'jam_selesai' => 'Jam selesai tidak boleh sama dengan jam mulai.',
-            ]);
-        }
-
-        // Durasi maksimal 4 jam - lintas tengah malam dianggap lanjut ke hari
-        // berikutnya (jam_selesai < jam_mulai), sama seperti Lembur::getDurasiMenitAttribute().
+        // Durasi HARUS persis 1/2/3/4 jam (dropdown di form cuma kasih 4
+        // pilihan itu) - cegah manipulasi request langsung yang kirim durasi
+        // lain (mis. 90 menit). Lintas tengah malam dianggap lanjut ke hari
+        // berikutnya, sama seperti Lembur::getDurasiMenitAttribute().
         $mulai   = Carbon::parse($jamMulai);
         $selesai = Carbon::parse($validated['jam_selesai']);
         if ($selesai->lessThanOrEqualTo($mulai)) {
             $selesai->addDay();
         }
 
-        if ($mulai->diffInMinutes($selesai) > 240) {
+        // diffInMinutes() Carbon mengembalikan float (mis. 60.0), bukan int -
+        // cast dulu supaya perbandingan strict in_array() tidak salah menolak
+        // durasi yang sebenarnya sudah tepat (60.0 !== 60 secara strict type).
+        $durasiMenit = (int) $mulai->diffInMinutes($selesai);
+
+        if (!in_array($durasiMenit, [60, 120, 180, 240], true)) {
             throw ValidationException::withMessages([
-                'jam_selesai' => 'Durasi lembur maksimal 4 jam.',
+                'jam_selesai' => 'Durasi lembur harus tepat 1, 2, 3, atau 4 jam.',
             ]);
         }
 

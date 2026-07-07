@@ -35,8 +35,15 @@ $statusInfo = [
                             <small class="text-muted">Otomatis = jam selesai shift Anda tanggal tsb.</small>
                         </div>
                         <div class="col-6 mb-3">
-                            <label class="form-label fw-semibold">Jam Selesai</label>
-                            <input type="time" name="jam_selesai" class="form-control" value="{{ old('jam_selesai') }}" required>
+                            <label class="form-label fw-semibold">Durasi Lembur</label>
+                            <select id="durasiSelect" class="form-select" required disabled>
+                                <option value="">-- Pilih tanggal dulu --</option>
+                                <option value="1">1 Jam</option>
+                                <option value="2">2 Jam</option>
+                                <option value="3">3 Jam</option>
+                                <option value="4">4 Jam</option>
+                            </select>
+                            <input type="hidden" name="jam_selesai" id="jamSelesaiValue">
                             @error('jam_selesai')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
                         </div>
                     </div>
@@ -147,6 +154,44 @@ const tanggalInput    = document.getElementById('tanggalInput');
 const jamMulaiDisplay = document.getElementById('jamMulaiDisplay');
 const shiftHelp       = document.getElementById('shiftHelp');
 const submitLembur    = document.getElementById('submitLembur');
+const durasiSelect    = document.getElementById('durasiSelect');
+const jamSelesaiValue = document.getElementById('jamSelesaiValue');
+
+// Hitung jam selesai = jamMulai (HH:MM) + tambahJam, lintas tengah malam aware.
+function hitungJamSelesai(jamMulai, tambahJam) {
+    const [h, m] = jamMulai.split(':').map(Number);
+    let totalMenit = h * 60 + m + tambahJam * 60;
+    const besok = totalMenit >= 24 * 60;
+    totalMenit = totalMenit % (24 * 60);
+    const jam = String(Math.floor(totalMenit / 60)).padStart(2, '0');
+    const menit = String(totalMenit % 60).padStart(2, '0');
+    return { jam: `${jam}:${menit}`, besok };
+}
+
+function perbaruiOpsiDurasi() {
+    const jamMulai = jamMulaiDisplay.value;
+    if (!jamMulai || jamMulai === '-' || jamMulai === 'Memuat...') return;
+
+    [1, 2, 3, 4].forEach(jam => {
+        const opt = durasiSelect.querySelector(`option[value="${jam}"]`);
+        const hasil = hitungJamSelesai(jamMulai, jam);
+        opt.textContent = `${jam} Jam (selesai ${hasil.jam}${hasil.besok ? ' besok' : ''})`;
+    });
+
+    updateJamSelesaiValue();
+}
+
+function updateJamSelesaiValue() {
+    const jamMulai = jamMulaiDisplay.value;
+    if (!jamMulai || jamMulai === '-' || jamMulai === 'Memuat...' || !durasiSelect.value) {
+        jamSelesaiValue.value = '';
+        return;
+    }
+
+    jamSelesaiValue.value = hitungJamSelesai(jamMulai, parseInt(durasiSelect.value, 10)).jam;
+}
+
+durasiSelect.addEventListener('change', updateJamSelesaiValue);
 
 async function muatJamMulai() {
     const tanggal = tanggalInput.value;
@@ -159,6 +204,8 @@ async function muatJamMulai() {
 
     jamMulaiDisplay.value = 'Memuat...';
     submitLembur.disabled = true;
+    durasiSelect.disabled = true;
+    durasiSelect.value = '';
 
     try {
         const url = '{{ route('lembur.jam-mulai-tersedia') }}?tanggal=' + encodeURIComponent(tanggal);
@@ -176,6 +223,8 @@ async function muatJamMulai() {
         jamMulaiDisplay.value = data.jam_mulai;
         shiftHelp.textContent = `Shift ${data.shift} - jam mulai lembur otomatis mengikuti jam selesai shift ini.`;
         shiftHelp.classList.remove('text-danger');
+        durasiSelect.disabled = false;
+        perbaruiOpsiDurasi();
         submitLembur.disabled = false;
     } catch (e) {
         jamMulaiDisplay.value = '-';

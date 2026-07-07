@@ -26,9 +26,15 @@
                     <small class="text-muted">Otomatis = jam selesai shift Anda tanggal tsb.</small>
                 </div>
                 <div class="col-6 mb-3">
-                    <label class="form-label fw-semibold">Jam Selesai</label>
-                    <input type="time" name="jam_selesai" class="form-control"
-                        value="{{ old('jam_selesai', substr($lembur->jam_selesai, 0, 5)) }}" required>
+                    <label class="form-label fw-semibold">Durasi Lembur</label>
+                    @php $durasiJamSaatIni = intdiv($lembur->durasi_menit, 60); @endphp
+                    <select id="durasiSelect" class="form-select" required>
+                        <option value="">-- Pilih Durasi --</option>
+                        @foreach([1, 2, 3, 4] as $jam)
+                        <option value="{{ $jam }}" {{ old('durasi', $durasiJamSaatIni) == $jam ? 'selected' : '' }}>{{ $jam }} Jam</option>
+                        @endforeach
+                    </select>
+                    <input type="hidden" name="jam_selesai" id="jamSelesaiValue" value="{{ old('jam_selesai', substr($lembur->jam_selesai, 0, 5)) }}">
                     @error('jam_selesai')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
                 </div>
             </div>
@@ -53,7 +59,45 @@ const tanggalInput    = document.getElementById('tanggalInput');
 const jamMulaiDisplay = document.getElementById('jamMulaiDisplay');
 const shiftHelp       = document.getElementById('shiftHelp');
 const submitLembur    = document.getElementById('submitLembur');
+const durasiSelect    = document.getElementById('durasiSelect');
+const jamSelesaiValue = document.getElementById('jamSelesaiValue');
 const helpDefault     = shiftHelp.textContent;
+
+// Hitung jam selesai = jamMulai (HH:MM) + tambahJam, lintas tengah malam aware.
+function hitungJamSelesai(jamMulai, tambahJam) {
+    const [h, m] = jamMulai.split(':').map(Number);
+    let totalMenit = h * 60 + m + tambahJam * 60;
+    const besok = totalMenit >= 24 * 60;
+    totalMenit = totalMenit % (24 * 60);
+    const jam = String(Math.floor(totalMenit / 60)).padStart(2, '0');
+    const menit = String(totalMenit % 60).padStart(2, '0');
+    return { jam: `${jam}:${menit}`, besok };
+}
+
+function perbaruiOpsiDurasi() {
+    const jamMulai = jamMulaiDisplay.value;
+    if (!jamMulai || jamMulai === '-' || jamMulai === 'Memuat...') return;
+
+    [1, 2, 3, 4].forEach(jam => {
+        const opt = durasiSelect.querySelector(`option[value="${jam}"]`);
+        const hasil = hitungJamSelesai(jamMulai, jam);
+        opt.textContent = `${jam} Jam (selesai ${hasil.jam}${hasil.besok ? ' besok' : ''})`;
+    });
+
+    updateJamSelesaiValue();
+}
+
+function updateJamSelesaiValue() {
+    const jamMulai = jamMulaiDisplay.value;
+    if (!jamMulai || jamMulai === '-' || jamMulai === 'Memuat...' || !durasiSelect.value) {
+        jamSelesaiValue.value = '';
+        return;
+    }
+
+    jamSelesaiValue.value = hitungJamSelesai(jamMulai, parseInt(durasiSelect.value, 10)).jam;
+}
+
+durasiSelect.addEventListener('change', updateJamSelesaiValue);
 
 async function muatJamMulai() {
     const tanggal = tanggalInput.value;
@@ -65,6 +109,7 @@ async function muatJamMulai() {
 
     jamMulaiDisplay.value = 'Memuat...';
     submitLembur.disabled = true;
+    durasiSelect.disabled = true;
 
     try {
         const url = '{{ route('lembur.jam-mulai-tersedia') }}?tanggal=' + encodeURIComponent(tanggal);
@@ -82,6 +127,8 @@ async function muatJamMulai() {
         jamMulaiDisplay.value = data.jam_mulai;
         shiftHelp.textContent = `Shift ${data.shift} - ` + helpDefault;
         shiftHelp.classList.remove('text-danger');
+        durasiSelect.disabled = false;
+        perbaruiOpsiDurasi();
         submitLembur.disabled = false;
     } catch (e) {
         jamMulaiDisplay.value = '-';
@@ -90,6 +137,10 @@ async function muatJamMulai() {
         submitLembur.disabled = true;
     }
 }
+
+// Isi label durasi dari jam_mulai yang sudah ada saat halaman dibuka (tanpa
+// perlu AJAX dulu, tanggal belum diubah jadi jam_mulai masih valid).
+perbaruiOpsiDurasi();
 
 tanggalInput.addEventListener('change', muatJamMulai);
 </script>
