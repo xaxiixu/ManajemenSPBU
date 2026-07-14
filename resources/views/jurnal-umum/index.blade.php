@@ -54,8 +54,8 @@
                     <th>Tanggal</th>
                     <th>Keterangan</th>
                     <th>Sumber</th>
-                    <th class="text-end">Total Debit</th>
-                    <th class="text-end">Total Kredit</th>
+                    <th class="text-end">Total Debit (Rp)</th>
+                    <th class="text-end">Total Kredit (Rp)</th>
                     <th>Aksi</th>
                 </tr>
             </thead>
@@ -74,8 +74,8 @@
                             <span class="badge bg-secondary">Manual</span>
                         @endif
                     </td>
-                    <td class="text-end">Rp {{ number_format($item->total_debit) }}</td>
-                    <td class="text-end">Rp {{ number_format($item->total_kredit) }}</td>
+                    <td class="text-end">{{ number_format($item->total_debit) }}</td>
+                    <td class="text-end">{{ number_format($item->total_kredit) }}</td>
                     <td>
                         <a href="{{ route('jurnal-umum.show', $item) }}" class="btn btn-sm btn-outline-primary">
                             <i class="bi bi-eye"></i> Detail

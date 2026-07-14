@@ -3,7 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\PengajuanShift;
+use App\Models\User;
+use App\Notifications\PengajuanDiajukan;
+use App\Notifications\PengajuanDiputuskan;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Notification;
 
 class PengajuanShiftController extends Controller
 {
@@ -35,6 +39,16 @@ class PengajuanShiftController extends Controller
             'user_id' => auth()->id(),
             'status'  => 'pending',
         ]);
+
+        Notification::send(
+            User::whereIn('role', ['pengawas', 'manager'])->get(),
+            new PengajuanDiajukan(
+                jenis: 'shift',
+                namaPetugas: auth()->user()->name,
+                tanggalLabel: \Carbon\Carbon::parse($validated['tanggal_berlaku'])->format('d/m/Y'),
+                url: route('approval.index'),
+            )
+        );
 
         return redirect()->route('pengajuan-shift.index')
             ->with('success', 'Pengajuan shift berhasil dikirim, menunggu approval.');
@@ -98,6 +112,13 @@ class PengajuanShiftController extends Controller
         // approval tidak berefek apa-apa terhadap shift petugas ybs).
         $pengajuanShift->user()->update(['shift_default' => $pengajuanShift->shift_diminta]);
 
+        $pengajuanShift->user->notify(new PengajuanDiputuskan(
+            jenis: 'shift',
+            status: 'approved',
+            tanggalLabel: $pengajuanShift->tanggal_berlaku->format('d/m/Y'),
+            url: route('pengajuan-shift.index'),
+        ));
+
         return back()->with('success', 'Pengajuan shift disetujui.');
     }
 
@@ -114,6 +135,13 @@ class PengajuanShiftController extends Controller
             'disetujui_oleh'   => auth()->id(),
             'catatan_approval' => $validated['catatan_approval'] ?? null,
         ]);
+
+        $pengajuanShift->user->notify(new PengajuanDiputuskan(
+            jenis: 'shift',
+            status: 'rejected',
+            tanggalLabel: $pengajuanShift->tanggal_berlaku->format('d/m/Y'),
+            url: route('pengajuan-shift.index'),
+        ));
 
         return back()->with('success', 'Pengajuan shift ditolak.');
     }

@@ -32,7 +32,7 @@ class CoaController extends Controller
 
     public function create()
     {
-        $this->authorizeIT();
+        $this->authorizeManager();
 
         $parents = Coa::whereNull('parent_id')->orderBy('kode_akun')->get();
 
@@ -47,7 +47,7 @@ class CoaController extends Controller
 
     public function store(Request $request)
     {
-        $this->authorizeIT();
+        $this->authorizeManager();
 
         $validated = $this->validateForm($request);
         $parent    = $this->resolveParent($validated['parent_id'] ?? null);
@@ -76,7 +76,7 @@ class CoaController extends Controller
 
     public function edit(Coa $coa)
     {
-        $this->authorizeIT();
+        $this->authorizeManager();
 
         // Akun berformat "1101" (standalone/parent) buang 1 digit prefix kategori,
         // akun berformat "1104-1" (child) ambil bagian setelah tanda "-"
@@ -96,7 +96,7 @@ class CoaController extends Controller
 
     public function update(Request $request, Coa $coa)
     {
-        $this->authorizeIT();
+        $this->authorizeManager();
 
         $validated = $this->validateForm($request, ['is_aktif' => 'required|in:0,1']);
         $parent    = $this->resolveParent($validated['parent_id'] ?? null, $coa);
@@ -125,7 +125,7 @@ class CoaController extends Controller
 
     public function destroy(Coa $coa)
     {
-        $this->authorizeIT();
+        $this->authorizeManager();
         $coa->delete();
         return redirect()->route('coa.index')
             ->with('success', 'Akun berhasil dihapus.');
@@ -186,9 +186,9 @@ class CoaController extends Controller
         return self::KATEGORI_INFO[$kategori]['prefix'] . $kodeSuffix;
     }
 
-    private function authorizeIT()
+    private function authorizeManager()
     {
-        if (!in_array(auth()->user()->role, ['it', 'manager'])) {
+        if (auth()->user()->role !== 'manager') {
             abort(403, 'Anda tidak memiliki akses ke halaman ini.');
         }
     }

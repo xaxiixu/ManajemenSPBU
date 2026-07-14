@@ -5,8 +5,12 @@ namespace App\Http\Controllers;
 use App\Models\Absensis;
 use App\Models\Lembur;
 use App\Models\ShiftMaster;
+use App\Models\User;
+use App\Notifications\PengajuanDiajukan;
+use App\Notifications\PengajuanDiputuskan;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
 
 class LemburController extends Controller
@@ -35,6 +39,16 @@ class LemburController extends Controller
             'user_id' => auth()->id(),
             'status'  => 'pending',
         ]);
+
+        Notification::send(
+            User::whereIn('role', ['pengawas', 'manager'])->get(),
+            new PengajuanDiajukan(
+                jenis: 'lembur',
+                namaPetugas: auth()->user()->name,
+                tanggalLabel: Carbon::parse($validated['tanggal'])->format('d/m/Y'),
+                url: route('approval.index'),
+            )
+        );
 
         return redirect()->route('lembur.index')
             ->with('success', 'Pengajuan lembur berhasil dikirim, menunggu approval.');
@@ -209,6 +223,13 @@ class LemburController extends Controller
             'catatan_approval' => $validated['catatan_approval'] ?? null,
         ]);
 
+        $lembur->user->notify(new PengajuanDiputuskan(
+            jenis: 'lembur',
+            status: 'approved',
+            tanggalLabel: $lembur->tanggal->format('d/m/Y'),
+            url: route('lembur.index'),
+        ));
+
         return back()->with('success', 'Pengajuan lembur disetujui.');
     }
 
@@ -225,6 +246,13 @@ class LemburController extends Controller
             'disetujui_oleh'   => auth()->id(),
             'catatan_approval' => $validated['catatan_approval'] ?? null,
         ]);
+
+        $lembur->user->notify(new PengajuanDiputuskan(
+            jenis: 'lembur',
+            status: 'rejected',
+            tanggalLabel: $lembur->tanggal->format('d/m/Y'),
+            url: route('lembur.index'),
+        ));
 
         return back()->with('success', 'Pengajuan lembur ditolak.');
     }

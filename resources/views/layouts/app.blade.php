@@ -316,7 +316,6 @@
         /* Badge role */
         .badge-manager  { background: #1a1a2e; color: #fff; }
         .badge-pengawas { background: var(--spbu-red); color: #fff; }
-        .badge-it       { background: #2980b9; color: #fff; }
         .badge-petugas  { background: #16a085; color: #fff; }
 
         /* Overlay mobile */
@@ -366,7 +365,7 @@
         @php $role = auth()->user()->role; @endphp
 
         {{-- UMUM: semua kecuali petugas --}}
-        @if(in_array($role, ['it', 'manager', 'pengawas']))
+        @if(in_array($role, ['manager', 'pengawas']))
         <div class="nav-section-label">Umum</div>
         <div class="nav-item">
             <a href="{{ route('dashboard') }}"
@@ -383,7 +382,7 @@
         @endif
 
         {{-- OPERASIONAL: petugas --}}
-        @if(in_array($role, ['it', 'petugas']))
+        @if($role === 'petugas')
         <div class="nav-section-label mt-2">Operasional</div>
         <div class="nav-item">
             <a href="{{ route('presensi.index') }}"
@@ -405,8 +404,8 @@
         </div>
         @endif
 
-        {{-- OPERASIONAL: pengawas/manager/it --}}
-        @if(in_array($role, ['it', 'manager', 'pengawas']))
+        {{-- OPERASIONAL: pengawas/manager --}}
+        @if(in_array($role, ['manager', 'pengawas']))
         <div class="nav-section-label mt-2">Operasional</div>
         <div class="nav-item">
             <a href="{{ route('penjualan-bbm.index') }}"
@@ -422,8 +421,8 @@
         </div>
         @endif
 
-        {{-- MASTER DATA: Manager + IT --}}
-        @if(in_array($role, ['manager', 'it']))
+        {{-- MASTER DATA: Manager --}}
+        @if($role === 'manager')
         <div class="nav-section-label mt-2">Master Data</div>
         <div class="nav-item">
             <a href="{{ route('coa.index') }}"
@@ -439,8 +438,8 @@
         </div>
         @endif
 
-        {{-- TRANSAKSI: Manager + IT --}}
-        @if(in_array($role, ['manager', 'it']))
+        {{-- TRANSAKSI: Manager --}}
+        @if($role === 'manager')
         <div class="nav-section-label mt-2">Transaksi</div>
         <div class="nav-item">
             <a href="{{ route('jurnal-umum.index') }}"
@@ -456,8 +455,8 @@
         </div>
         @endif
 
-        {{-- MANAJEMEN: Pengawas + Manager + IT --}}
-        @if(in_array($role, ['manager', 'pengawas', 'it']))
+        {{-- MANAJEMEN: Pengawas + Manager --}}
+        @if(in_array($role, ['manager', 'pengawas']))
         <div class="nav-section-label mt-2">Manajemen</div>
         <div class="nav-item">
             <a href="{{ route('petugas.index') }}"
@@ -479,8 +478,8 @@
         </div>
         @endif
 
-        {{-- PENGATURAN: IT --}}
-        @if($role === 'it')
+        {{-- PENGATURAN: Manager --}}
+        @if($role === 'manager')
         <div class="nav-section-label mt-2">Pengaturan</div>
         <div class="nav-item">
             <a href="{{ route('users.index') }}"
@@ -518,13 +517,32 @@
     </button>
     <span class="topbar-title">@yield('page-title', 'Dashboard')</span>
     <div class="topbar-right">
+        <div class="dropdown">
+            <button class="btn btn-link text-dark position-relative p-0 me-1" type="button"
+                id="notifDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="font-size:1.2rem; line-height:1;">
+                <i class="bi bi-bell-fill"></i>
+                <span id="notifBadge" class="badge rounded-pill bg-danger position-absolute top-0 start-100 translate-middle"
+                    style="font-size:.6rem; display:none;">0</span>
+            </button>
+            <div class="dropdown-menu dropdown-menu-end p-0" style="width:320px; max-height:400px; overflow-y:auto;" aria-labelledby="notifDropdown">
+                <div class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom">
+                    <strong class="small">Notifikasi</strong>
+                    <form id="formBacaSemua" action="{{ route('notifikasi.baca-semua') }}" method="POST" class="mb-0">
+                        @csrf
+                        <button type="submit" class="btn btn-link btn-sm p-0 text-decoration-none">Tandai semua dibaca</button>
+                    </form>
+                </div>
+                <div id="notifList">
+                    <div class="text-center text-muted small py-3">Memuat...</div>
+                </div>
+            </div>
+        </div>
         <span class="topbar-date">
             <i class="bi bi-calendar3 me-1"></i>
             <span id="currentDate"></span>
         </span>
         @php
             $roleBadge = match(auth()->user()->role) {
-                'it'       => 'badge-it',
                 'manager'  => 'badge-manager',
                 'petugas'  => 'badge-petugas',
                 default    => 'badge-pengawas',
@@ -577,6 +595,46 @@
         document.getElementById('sidebar').classList.remove('open');
         document.getElementById('sidebarOverlay').classList.remove('open');
     }
+
+    // Notifikasi
+    function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
+    function muatNotifikasi() {
+        fetch('{{ route('notifikasi.data') }}')
+            .then(res => res.json())
+            .then(data => {
+                const badge = document.getElementById('notifBadge');
+                const list = document.getElementById('notifList');
+
+                if (data.unread_count > 0) {
+                    badge.textContent = data.unread_count > 9 ? '9+' : data.unread_count;
+                    badge.style.display = 'block';
+                } else {
+                    badge.style.display = 'none';
+                }
+
+                if (data.items.length === 0) {
+                    list.innerHTML = '<div class="text-center text-muted small py-3">Belum ada notifikasi</div>';
+                    return;
+                }
+
+                list.innerHTML = data.items.map(item => `
+                    <a href="/notifikasi/${item.id}/buka" class="d-block text-decoration-none text-dark px-3 py-2 border-bottom ${item.dibaca ? '' : 'bg-light'}">
+                        <div class="small ${item.dibaca ? '' : 'fw-semibold'}">${escapeHtml(item.pesan)}</div>
+                        <div class="text-muted" style="font-size:.75rem;">${escapeHtml(item.waktu)}</div>
+                    </a>
+                `).join('');
+            });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        muatNotifikasi();
+        setInterval(muatNotifikasi, 30000);
+    });
 </script>
 
 @stack('scripts')

@@ -8,7 +8,7 @@
         <h2><i class="bi bi-cash-stack me-2 text-danger"></i>Pengeluaran Operasional</h2>
         <p>Data pengeluaran operasional SPBU</p>
     </div>
-    @if(in_array(auth()->user()->role, ['pengawas', 'it']))
+    @if(in_array(auth()->user()->role, ['pengawas']))
     <a href="{{ route('pengeluaran.create') }}" class="btn btn-danger">
         <i class="bi bi-plus-lg me-1"></i> Tambah Pengeluaran
     </a>
@@ -71,7 +71,7 @@
                     <th>Keterangan</th>
                     <th>Jumlah</th>
                     <th>Bukti</th>
-                    @if(in_array(auth()->user()->role, ['pengawas', 'it']))
+                    @if(in_array(auth()->user()->role, ['pengawas']))
                     <th>Aksi</th>
                     @endif
                 </tr>
@@ -92,7 +92,7 @@
                             <span class="text-muted small">-</span>
                         @endif
                     </td>
-                    @if(in_array(auth()->user()->role, ['pengawas', 'it']))
+                    @if(in_array(auth()->user()->role, ['pengawas']))
                     <td>
                         <a href="{{ route('pengeluaran.edit', $item) }}" class="btn btn-sm btn-outline-primary">
                             <i class="bi bi-pencil"></i>
@@ -106,7 +106,7 @@
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="{{ in_array(auth()->user()->role, ['pengawas', 'it']) ? 6 : 5 }}"
+                    <td colspan="{{ in_array(auth()->user()->role, ['pengawas']) ? 6 : 5 }}"
                         class="text-center py-4 text-muted">
                         Belum ada data pengeluaran untuk periode ini.
                     </td>
@@ -118,7 +118,7 @@
 </div>
 
 {{-- Modal Hapus --}}
-@if(in_array(auth()->user()->role, ['pengawas', 'it']))
+@if(in_array(auth()->user()->role, ['pengawas']))
 <div class="modal fade" id="modalHapus" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">

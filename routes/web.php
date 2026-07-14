@@ -17,6 +17,7 @@ use App\Http\Controllers\JadwalShiftController;
 use App\Http\Controllers\PengajuanShiftController;
 use App\Http\Controllers\LemburController;
 use App\Http\Controllers\ApprovalController;
+use App\Http\Controllers\NotificationController;
 
 // ── Auth ─────────────────────────────────────────────
 Route::middleware('guest')->group(function () {
@@ -36,6 +37,11 @@ Route::middleware('auth')->group(function () {
         }
         return redirect()->route('dashboard');
     });
+
+    // ── Notifikasi: semua role ─────────────────────────
+    Route::get('/notifikasi/data', [NotificationController::class, 'data'])->name('notifikasi.data');
+    Route::get('/notifikasi/{id}/buka', [NotificationController::class, 'buka'])->name('notifikasi.buka');
+    Route::post('/notifikasi/baca-semua', [NotificationController::class, 'bacaSemua'])->name('notifikasi.baca-semua');
 
     // ── Dashboard & Laporan: semua kecuali petugas ─────
     Route::middleware('role:manager,pengawas')->group(function () {
@@ -123,8 +129,8 @@ Route::middleware('auth')->group(function () {
         Route::resource('buku-besar', BukuBesarController::class)->only(['index', 'show']);
     });
 
-    // ── IT only: pengaturan & manajemen user ──────────
-    Route::middleware('role:it')->group(function () {
+    // ── Manager only: pengaturan & manajemen user ─────
+    Route::middleware('role:manager')->group(function () {
         // Manajemen User (termasuk buat akun petugas)
         Route::get('/users', [UserController::class, 'index'])->name('users.index');
         Route::get('/users/create', [UserController::class, 'create'])->name('users.create');

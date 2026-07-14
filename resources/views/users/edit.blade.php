@@ -10,7 +10,7 @@
 
 <div class="card" style="max-width:600px;">
     <div class="card-body">
-        <form action="{{ route('users.update', $user) }}" method="POST">
+        <form action="{{ route('users.update', $user) }}" method="POST" id="formEditUser">
         @csrf @method('PUT')
             <div class="mb-3">
                 <label class="form-label fw-semibold">Nama Lengkap</label>
@@ -27,7 +27,6 @@
             <div class="mb-3">
                 <label class="form-label fw-semibold">Role</label>
                 <select name="role" id="role" class="form-select" required>
-                    <option value="it"       {{ old('role', $user->role) == 'it'       ? 'selected' : '' }}>IT</option>
                     <option value="manager"  {{ old('role', $user->role) == 'manager'  ? 'selected' : '' }}>Manager</option>
                     <option value="pengawas" {{ old('role', $user->role) == 'pengawas' ? 'selected' : '' }}>Pengawas</option>
                     <option value="petugas"  {{ old('role', $user->role) == 'petugas'  ? 'selected' : '' }}>Petugas</option>
@@ -39,18 +38,6 @@
                     <label class="form-label fw-semibold">NIK</label>
                     <input type="text" name="nik" class="form-control" value="{{ old('nik', $user->nik) }}">
                     @error('nik')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
-                </div>
-                <div class="mb-3">
-                    <label class="form-label fw-semibold">Jabatan</label>
-                    <select name="jabatan" class="form-select">
-                        <option value="">-- Pilih Jabatan --</option>
-                        <option value="operator"   {{ old('jabatan', $user->jabatan) == 'operator'   ? 'selected' : '' }}>Operator</option>
-                        <option value="supervisor" {{ old('jabatan', $user->jabatan) == 'supervisor' ? 'selected' : '' }}>Supervisor</option>
-                        <option value="kasir"      {{ old('jabatan', $user->jabatan) == 'kasir'      ? 'selected' : '' }}>Kasir</option>
-                        <option value="teknisi"    {{ old('jabatan', $user->jabatan) == 'teknisi'    ? 'selected' : '' }}>Teknisi</option>
-                        <option value="lainnya"    {{ old('jabatan', $user->jabatan) == 'lainnya'    ? 'selected' : '' }}>Lainnya</option>
-                    </select>
-                    @error('jabatan')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
                 </div>
                 <div class="mb-3">
                     <label class="form-label fw-semibold">Shift Default</label>
@@ -88,7 +75,7 @@
             </div>
             <div class="d-flex gap-2">
                 <a href="{{ route('users.index') }}" class="btn btn-secondary">Batal</a>
-                <button type="submit" class="btn btn-danger">
+                <button type="submit" class="btn btn-danger" id="btnUpdateUser">
                     <i class="bi bi-save me-1"></i>Update
                 </button>
             </div>
@@ -108,6 +95,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
     roleEl.addEventListener('change', toggle);
     toggle();
+
+    document.getElementById('formEditUser').addEventListener('submit', function () {
+        document.getElementById('btnUpdateUser').disabled = true;
+    });
 });
 </script>
 @endpush

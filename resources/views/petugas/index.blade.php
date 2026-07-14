@@ -8,7 +8,7 @@
         <h2><i class="bi bi-person-badge-fill me-2 text-danger"></i>Data Petugas</h2>
         <p>Daftar petugas dan kehadiran per shift hari ini</p>
     </div>
-    @if(auth()->user()->role === 'it')
+    @if(auth()->user()->role === 'manager')
     <a href="{{ route('users.create') }}" class="btn btn-danger">
         <i class="bi bi-plus-lg me-1"></i> Tambah Akun Petugas
     </a>

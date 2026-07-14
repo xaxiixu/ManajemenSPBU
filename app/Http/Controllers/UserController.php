@@ -16,21 +16,20 @@ class UserController extends Controller
 
     public function create()
     {
-        $this->authorizeIT();
+        $this->authorizeManager();
         return view('users.create');
     }
 
     public function store(Request $request)
     {
-        $this->authorizeIT();
+        $this->authorizeManager();
 
         $validated = $request->validate([
             'name'          => 'required|string|max:100',
             'email'         => 'required|email|unique:users,email',
             'password'      => 'required|string|min:6|confirmed',
-            'role'          => 'required|in:manager,pengawas,it,petugas',
+            'role'          => 'required|in:manager,pengawas,petugas',
             'nik'           => 'nullable|string|max:20|unique:users,nik',
-            'jabatan'       => 'nullable|in:operator,supervisor,kasir,teknisi,lainnya',
             'no_hp'         => 'nullable|string|max:20',
             'shift_default' => 'nullable|in:Pagi,Siang,Malam',
         ], [
@@ -46,7 +45,7 @@ class UserController extends Controller
             'role'          => $validated['role'],
             'is_active'     => 1,
             'nik'           => $validated['nik'] ?? null,
-            'jabatan'       => $validated['jabatan'] ?? null,
+            'jabatan'       => $validated['role'] === 'petugas' ? 'operator' : null,
             'no_hp'         => $validated['no_hp'] ?? null,
             'shift_default' => $validated['shift_default'] ?? null,
         ]);
@@ -57,22 +56,21 @@ class UserController extends Controller
 
     public function edit(User $user)
     {
-        $this->authorizeIT();
+        $this->authorizeManager();
         return view('users.edit', compact('user'));
     }
 
     public function update(Request $request, User $user)
     {
-        $this->authorizeIT();
+        $this->authorizeManager();
 
         $request->validate([
             'name'          => 'required|string|max:100',
             'email'         => 'required|email|unique:users,email,' . $user->id,
-            'role'          => 'required|in:manager,pengawas,it,petugas',
+            'role'          => 'required|in:manager,pengawas,petugas',
             'is_active'     => 'required|in:0,1',
             'password'      => 'nullable|string|min:6|confirmed',
             'nik'           => 'nullable|string|max:20|unique:users,nik,' . $user->id,
-            'jabatan'       => 'nullable|in:operator,supervisor,kasir,teknisi,lainnya',
             'no_hp'         => 'nullable|string|max:20',
             'shift_default' => 'nullable|in:Pagi,Siang,Malam',
         ], [
@@ -85,7 +83,7 @@ class UserController extends Controller
             'role'          => $request->role,
             'is_active'     => $request->is_active,
             'nik'           => $request->nik,
-            'jabatan'       => $request->jabatan,
+            'jabatan'       => $request->role === 'petugas' ? 'operator' : null,
             'no_hp'         => $request->no_hp,
             'shift_default' => $request->shift_default,
         ];
@@ -102,7 +100,7 @@ class UserController extends Controller
 
     public function destroy(User $user)
     {
-        $this->authorizeIT();
+        $this->authorizeManager();
 
         if ($user->id === auth()->id()) {
             return redirect()->route('users.index')
@@ -115,11 +113,11 @@ class UserController extends Controller
             ->with('success', 'User berhasil dihapus.');
     }
 
-    // Helper: hanya IT yang bisa aksi write
-    private function authorizeIT()
+    // Helper: hanya manager yang bisa aksi write
+    private function authorizeManager()
     {
-        if (auth()->user()->role !== 'it') {
-            abort(403, 'Hanya IT yang dapat melakukan aksi ini.');
+        if (auth()->user()->role !== 'manager') {
+            abort(403, 'Hanya manager yang dapat melakukan aksi ini.');
         }
     }
 }

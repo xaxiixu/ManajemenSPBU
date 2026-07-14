@@ -8,7 +8,7 @@
         <h2><i class="bi bi-list-columns-reverse me-2 text-danger"></i>Chart of Accounts</h2>
         <p>Daftar akun keuangan SPBU</p>
     </div>
-    @if(in_array(auth()->user()->role, ['it', 'manager']))
+    @if(auth()->user()->role === 'manager')
     <a href="{{ route('coa.create') }}" class="btn btn-danger">
         <i class="bi bi-plus-lg me-1"></i> Tambah Akun
     </a>
@@ -23,7 +23,7 @@ $kategoriLabel = [
     'pendapatan' => ['label' => 'Pendapatan', 'color' => 'success'],
     'beban'      => ['label' => 'Beban',      'color' => 'danger'],
 ];
-$canEdit = in_array(auth()->user()->role, ['it', 'manager']);
+$canEdit = auth()->user()->role === 'manager';
 @endphp
 
 @foreach($data as $kategori => $akuns)

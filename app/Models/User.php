@@ -37,10 +37,9 @@ class User extends Authenticatable
 
     public function isManager(): bool  { return $this->role === 'manager'; }
     public function isPengawas(): bool { return $this->role === 'pengawas'; }
-    public function isIT(): bool       { return $this->role === 'it'; }
     public function isPetugas(): bool  { return $this->role === 'petugas'; }
-    public function canEdit(): bool    { return in_array($this->role, ['it', 'pengawas', 'manager']); }
-    public function isAdminLevel(): bool { return in_array($this->role, ['it', 'manager']); }
+    public function canEdit(): bool    { return in_array($this->role, ['pengawas', 'manager']); }
+    public function isAdminLevel(): bool { return $this->role === 'manager'; }
 
     public function absensis()
     {

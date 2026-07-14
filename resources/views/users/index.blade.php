@@ -8,7 +8,7 @@
         <h2><i class="bi bi-people-fill me-2 text-danger"></i>Manajemen User</h2>
         <p>Kelola akun pengguna sistem</p>
     </div>
-    @if(auth()->user()->role === 'it')
+    @if(auth()->user()->role === 'manager')
     <a href="{{ route('users.create') }}" class="btn btn-danger">
         <i class="bi bi-plus-lg me-1"></i> Tambah User
     </a>
@@ -24,7 +24,7 @@
                     <th>Email</th>
                     <th>Role</th>
                     <th>Status</th>
-                    @if(auth()->user()->role === 'it')
+                    @if(auth()->user()->role === 'manager')
                     <th>Aksi</th>
                     @endif
                 </tr>
@@ -47,7 +47,6 @@
                     <td>
                         @php
                             $badgeColor = match($item->role) {
-                                'it'       => 'bg-primary',
                                 'manager'  => 'bg-dark',
                                 'pengawas' => 'bg-danger',
                                 'petugas'  => 'bg-info',
@@ -65,7 +64,7 @@
                             <span class="badge bg-danger">Nonaktif</span>
                         @endif
                     </td>
-                    @if(auth()->user()->role === 'it')
+                    @if(auth()->user()->role === 'manager')
                     <td>
                         <a href="{{ route('users.edit', $item) }}" class="btn btn-sm btn-outline-primary">
                             <i class="bi bi-pencil"></i> Edit
@@ -81,7 +80,7 @@
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="{{ auth()->user()->role === 'it' ? 5 : 4 }}"
+                    <td colspan="{{ auth()->user()->role === 'manager' ? 5 : 4 }}"
                         class="text-center py-4 text-muted">
                         Belum ada user.
                     </td>
@@ -92,7 +91,7 @@
     </div>
 </div>
 
-@if(auth()->user()->role === 'it')
+@if(auth()->user()->role === 'manager')
 <div class="modal fade" id="modalHapus" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">

@@ -54,8 +54,8 @@
                     <th>Kode Akun</th>
                     <th>Nama Akun</th>
                     <th>Keterangan</th>
-                    <th class="text-end">Debit</th>
-                    <th class="text-end">Kredit</th>
+                    <th class="text-end">Debit (Rp)</th>
+                    <th class="text-end">Kredit (Rp)</th>
                 </tr>
             </thead>
             <tbody>
@@ -65,10 +65,10 @@
                     <td>{{ $detail->coa->nama_akun }}</td>
                     <td class="text-muted small">{{ $detail->keterangan }}</td>
                     <td class="text-end">
-                        {{ $detail->posisi == 'debit' ? 'Rp ' . number_format($detail->jumlah) : '-' }}
+                        {{ $detail->posisi == 'debit' ? number_format($detail->jumlah) : '-' }}
                     </td>
                     <td class="text-end">
-                        {{ $detail->posisi == 'kredit' ? 'Rp ' . number_format($detail->jumlah) : '-' }}
+                        {{ $detail->posisi == 'kredit' ? number_format($detail->jumlah) : '-' }}
                     </td>
                 </tr>
                 @endforeach
@@ -76,8 +76,8 @@
             <tfoot class="table-light">
                 <tr>
                     <th colspan="3" class="text-end">Total</th>
-                    <th class="text-end">Rp {{ number_format($jurnalUmum->total_debit) }}</th>
-                    <th class="text-end">Rp {{ number_format($jurnalUmum->total_kredit) }}</th>
+                    <th class="text-end">{{ number_format($jurnalUmum->total_debit) }}</th>
+                    <th class="text-end">{{ number_format($jurnalUmum->total_kredit) }}</th>
                 </tr>
             </tfoot>
         </table>
