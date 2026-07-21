@@ -24,5 +24,6 @@ class DatabaseSeeder extends Seeder
 
         $this->call(PetugasSeeder::class);
         $this->call(MasterBbmSeeder::class);
+        $this->call(PayrollSettingSeeder::class);
     }
 }

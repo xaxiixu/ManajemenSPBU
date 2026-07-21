@@ -402,6 +402,12 @@
                 <i class="bi bi-clock-history"></i> Pengajuan Lembur
             </a>
         </div>
+        <div class="nav-item">
+            <a href="{{ route('gaji-saya.index') }}"
+                class="{{ request()->routeIs('gaji-saya.*') ? 'active' : '' }}">
+                <i class="bi bi-wallet2"></i> Gaji Saya
+            </a>
+        </div>
         @endif
 
         {{-- OPERASIONAL: pengawas/manager --}}
@@ -474,6 +480,23 @@
             <a href="{{ route('approval.index') }}"
                 class="{{ request()->routeIs('approval.*') ? 'active' : '' }}">
                 <i class="bi bi-check2-square"></i> Approval
+            </a>
+        </div>
+        @endif
+
+        {{-- PAYROLL: Manager --}}
+        @if($role === 'manager')
+        <div class="nav-section-label mt-2">Payroll</div>
+        <div class="nav-item">
+            <a href="{{ route('penggajian.index') }}"
+                class="{{ request()->routeIs('penggajian.*') ? 'active' : '' }}">
+                <i class="bi bi-cash-coin"></i> Penggajian
+            </a>
+        </div>
+        <div class="nav-item">
+            <a href="{{ route('pengaturan-gaji.edit') }}"
+                class="{{ request()->routeIs('pengaturan-gaji.*') ? 'active' : '' }}">
+                <i class="bi bi-sliders"></i> Pengaturan Gaji
             </a>
         </div>
         @endif

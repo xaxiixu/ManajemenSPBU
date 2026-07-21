@@ -20,6 +20,8 @@ class User extends Authenticatable
         'jabatan',
         'no_hp',
         'shift_default',
+        'gaji_pokok',
+        'tanggal_bergabung',
     ];
 
     protected $hidden = [
@@ -32,6 +34,8 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password'          => 'hashed',
+            'gaji_pokok'        => 'integer',
+            'tanggal_bergabung' => 'date',
         ];
     }
 
@@ -54,5 +58,10 @@ class User extends Authenticatable
     public function lembur()
     {
         return $this->hasMany(Lembur::class, 'user_id');
+    }
+
+    public function payrollDetails()
+    {
+        return $this->hasMany(PayrollDetail::class, 'user_id');
     }
 }

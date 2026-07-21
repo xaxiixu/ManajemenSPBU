@@ -49,10 +49,28 @@
                     </select>
                     @error('shift_default')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
                 </div>
-                <div class="mb-0">
+                <div class="mb-3">
                     <label class="form-label fw-semibold">No. HP</label>
                     <input type="text" name="no_hp" class="form-control" value="{{ old('no_hp', $user->no_hp) }}">
                     @error('no_hp')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Gaji Pokok</label>
+                    <div class="input-group">
+                        <span class="input-group-text">Rp</span>
+                        <input type="number" name="gaji_pokok" class="form-control" min="0"
+                            value="{{ old('gaji_pokok', $user->gaji_pokok) }}">
+                        <span class="input-group-text">/ bulan</span>
+                    </div>
+                    <div class="form-text">Nominal bulanan tetap, dipakai dalam perhitungan payroll. Mengubah ini tidak mengubah slip periode yang sudah dikirim.</div>
+                    @error('gaji_pokok')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
+                </div>
+                <div class="mb-0">
+                    <label class="form-label fw-semibold">Tanggal Bergabung</label>
+                    <input type="date" name="tanggal_bergabung" class="form-control"
+                        value="{{ old('tanggal_bergabung', optional($user->tanggal_bergabung)->format('Y-m-d')) }}">
+                    <div class="form-text">Dipakai untuk prorate gaji petugas baru di periode pertamanya.</div>
+                    @error('tanggal_bergabung')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
                 </div>
             </div>
             <div class="mb-3">

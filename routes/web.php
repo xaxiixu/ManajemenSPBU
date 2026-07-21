@@ -18,6 +18,8 @@ use App\Http\Controllers\PengajuanShiftController;
 use App\Http\Controllers\LemburController;
 use App\Http\Controllers\ApprovalController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\PengaturanGajiController;
+use App\Http\Controllers\PayrollController;
 
 // ── Auth ─────────────────────────────────────────────
 Route::middleware('guest')->group(function () {
@@ -138,5 +140,29 @@ Route::middleware('auth')->group(function () {
         Route::get('/users/{user}/edit', [UserController::class, 'edit'])->name('users.edit');
         Route::put('/users/{user}', [UserController::class, 'update'])->name('users.update');
         Route::delete('/users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
+    });
+
+    // ── Manager: Payroll (pengaturan gaji + penggajian) ───
+    Route::middleware('role:manager')->group(function () {
+        // Pengaturan gaji (parameter global payroll)
+        Route::get('/pengaturan-gaji', [PengaturanGajiController::class, 'edit'])->name('pengaturan-gaji.edit');
+        Route::put('/pengaturan-gaji', [PengaturanGajiController::class, 'update'])->name('pengaturan-gaji.update');
+
+        // Penggajian (generate, review, kirim)
+        Route::get('/penggajian', [PayrollController::class, 'index'])->name('penggajian.index');
+        Route::post('/penggajian/generate', [PayrollController::class, 'generate'])->name('penggajian.generate');
+        Route::get('/penggajian/{payrollRun}', [PayrollController::class, 'show'])->name('penggajian.show');
+        Route::delete('/penggajian/{payrollRun}', [PayrollController::class, 'destroy'])->name('penggajian.destroy');
+        Route::post('/penggajian/{payrollRun}/kirim', [PayrollController::class, 'kirim'])->name('penggajian.kirim');
+
+        // Penyesuaian manual (hanya saat draft — dicek di controller)
+        Route::post('/penggajian/detail/{detail}/penyesuaian', [PayrollController::class, 'storePenyesuaian'])->name('penggajian.penyesuaian.store');
+        Route::delete('/penggajian/penyesuaian/{penyesuaian}', [PayrollController::class, 'destroyPenyesuaian'])->name('penggajian.penyesuaian.destroy');
+    });
+
+    // ── Petugas: slip gaji milik sendiri ──────────────────
+    Route::middleware('role:petugas')->group(function () {
+        Route::get('/gaji-saya', [PayrollController::class, 'gajiSaya'])->name('gaji-saya.index');
+        Route::get('/gaji-saya/{payrollDetail}', [PayrollController::class, 'gajiSayaShow'])->name('gaji-saya.show');
     });
 });

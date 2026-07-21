@@ -4,6 +4,24 @@
 
 @section('content')
 
+@if (!empty($reminderPayroll))
+<div class="alert {{ $reminderPayroll['overdue'] ? 'alert-danger' : 'alert-warning' }} d-flex align-items-center gap-3 shadow-sm">
+    <i class="bi bi-cash-coin fs-3"></i>
+    <div class="flex-grow-1">
+        <div class="fw-bold">
+            {{ $reminderPayroll['overdue'] ? 'Penggajian terlewat — segera diproses!' : 'Jadwal penggajian sudah dekat!' }}
+        </div>
+        <div class="small">
+            Periode <strong>{{ $reminderPayroll['mulai']->translatedFormat('d M Y') }} — {{ $reminderPayroll['selesai']->translatedFormat('d M Y') }}</strong>
+            belum dikirim. Segera proses payroll periode ini.
+        </div>
+    </div>
+    <a href="{{ route('penggajian.index') }}" class="btn btn-sm {{ $reminderPayroll['overdue'] ? 'btn-danger' : 'btn-warning' }} text-nowrap">
+        <i class="bi bi-arrow-right-circle me-1"></i>Proses Sekarang
+    </a>
+</div>
+@endif
+
 @if ($tanggalOperasional['lintas_tengah_malam'])
 <div class="alert alert-warning">
     <i class="bi bi-moon-stars-fill me-1"></i>
