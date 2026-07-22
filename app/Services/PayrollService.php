@@ -64,8 +64,8 @@ class PayrollService
     public function periodeSaatIni(?PayrollSetting $setting = null, ?Carbon $acuan = null): array
     {
         $setting = $setting ?? PayrollSetting::get();
-        $g       = $setting->tanggal_gajian;
-        $acuan   = ($acuan ?? Carbon::today())->copy()->startOfDay();
+        $g = $setting->tanggal_gajian;
+        $acuan = ($acuan ?? Carbon::today())->copy()->startOfDay();
 
         $gajianBulanIni = $this->tanggalGajian($acuan->year, $acuan->month, $g);
 
@@ -73,11 +73,11 @@ class PayrollService
             $selesai = $gajianBulanIni;
         } else {
             $bulanDepan = $acuan->copy()->addMonthNoOverflow();
-            $selesai    = $this->tanggalGajian($bulanDepan->year, $bulanDepan->month, $g);
+            $selesai = $this->tanggalGajian($bulanDepan->year, $bulanDepan->month, $g);
         }
 
         return [
-            'mulai'   => $this->mulaiUntukSelesai($selesai, $g),
+            'mulai' => $this->mulaiUntukSelesai($selesai, $g),
             'selesai' => $selesai,
         ];
     }
@@ -93,10 +93,10 @@ class PayrollService
     public function daftarKandidatPeriode(int $jumlahMundur = 6, ?PayrollSetting $setting = null): array
     {
         $setting = $setting ?? PayrollSetting::get();
-        $g       = $setting->tanggal_gajian;
+        $g = $setting->tanggal_gajian;
 
         $periodeIni = $this->periodeSaatIni($setting);
-        $selesai    = $periodeIni['selesai'];
+        $selesai = $periodeIni['selesai'];
 
         $hasil = [];
         for ($i = 0; $i < $jumlahMundur; $i++) {
@@ -124,12 +124,16 @@ class PayrollService
      * total_penyesuaian selalu 0 di sini (penyesuaian manual ditambahkan
      * belakangan saat draft, lihat PayrollDetail::refreshTotal()).
      *
-     * @return array<string, int>  siap dipakai untuk isi payroll_details
+     * @return array<string, int> siap dipakai untuk isi payroll_details
      */
-    public function hitung(User $petugas, Carbon $periodeMulai, Carbon $periodeSelesai, PayrollSetting $setting): array
+    public function hitung(User $petugas, Carbon $periodeMulai, Carbon $periodeSelesai, PayrollSetting $setting, ?Carbon $hariIni = null): array
     {
-        $periodeMulai   = $periodeMulai->copy()->startOfDay();
+        $periodeMulai = $periodeMulai->copy()->startOfDay();
         $periodeSelesai = $periodeSelesai->copy()->startOfDay();
+        // "Hari ini" dipakai sebagai batas untuk deteksi hari tidak tercatat:
+        // tanggal dalam periode yang BELUM terjadi (> hari ini) tidak boleh
+        // dihitung bolos. Bisa di-inject untuk test yang deterministik.
+        $hariIni = ($hariIni ?? Carbon::today())->copy()->startOfDay();
 
         // ── (0) Jumlah hari kalender dalam periode (inklusif) ──────────────
         // 26 Jun s/d 25 Jul = 30 hari. Dipakai sebagai pembagi rate harian,
@@ -156,7 +160,7 @@ class PayrollService
             && $tanggalBergabung->greaterThan($periodeMulai)
             && $tanggalBergabung->lessThanOrEqualTo($periodeSelesai)) {
             // Hari kerja efektif = tanggal_bergabung s/d akhir periode (inklusif).
-            $hariEfektif      = $tanggalBergabung->diffInDays($periodeSelesai) + 1;
+            $hariEfektif = $tanggalBergabung->diffInDays($periodeSelesai) + 1;
             $gajiPokokProrate = (int) round($rateHarian * $hariEfektif);
         }
 
@@ -173,22 +177,26 @@ class PayrollService
         $jumlahHadir = 0;
         $jumlahAlpha = 0;
         $jumlahSakit = 0;
-        $jumlahIzin  = 0;
+        $jumlahIzin = 0;
 
         // ── (3) Potongan telat ─────────────────────────────────────────────
         // Untuk tiap record: kalau menit_telat > toleransi, HANYA kelebihannya
         // (menit_telat − toleransi) yang dipotong, diakumulasi lintas record.
         // Praktisnya hanya record 'hadir' yang punya menit_telat > 0.
-        $toleransi           = (int) $setting->toleransi_telat_menit;
-        $jumlahKaliTelat     = 0;
+        $toleransi = (int) $setting->toleransi_telat_menit;
+        $jumlahKaliTelat = 0;
         $totalMenitKenaPotong = 0;
 
         foreach ($absensi as $row) {
             switch ($row->status_hadir) {
-                case 'hadir':       $jumlahHadir++; break;
-                case 'tidak_hadir': $jumlahAlpha++; break;   // alpha
-                case 'sakit':       $jumlahSakit++; break;
-                case 'izin':        $jumlahIzin++;  break;
+                case 'hadir':       $jumlahHadir++;
+                    break;
+                case 'tidak_hadir': $jumlahAlpha++;
+                    break;   // alpha
+                case 'sakit':       $jumlahSakit++;
+                    break;
+                case 'izin':        $jumlahIzin++;
+                    break;
             }
 
             $telat = (int) ($row->menit_telat ?? 0);
@@ -200,6 +208,38 @@ class PayrollService
 
         $potonganTelat = $totalMenitKenaPotong * (int) $setting->rate_potongan_telat_per_menit;
 
+        // ── (3b) Hari tidak tercatat ───────────────────────────────────────
+        // Tanggal dalam periode yang TIDAK punya record absensi sama sekali
+        // (kosong: bukan hadir/sakit/izin/alpha). SPBU beroperasi 24/7 → tidak
+        // ada hari libur resmi, jadi tanggal kosong kemungkinan besar berarti
+        // pencatatan pengawas terlewat, BUKAN benar-benar libur.
+        //
+        // Basis "hari yang seharusnya ada record" (keputusan desain, lebih aman
+        // dari sekadar seluruh hari periode):
+        //   batasAwal  = MAX(awal periode, tanggal bergabung)  → hari sebelum
+        //                petugas bergabung bukan tanggung jawabnya.
+        //   batasAkhir = MIN(akhir periode, hari ini)          → tanggal yang
+        //                belum terjadi tidak boleh dihitung bolos.
+        $batasAwal = ($tanggalBergabung && $tanggalBergabung->greaterThan($periodeMulai))
+            ? $tanggalBergabung->copy()
+            : $periodeMulai->copy();
+        $batasAkhir = $hariIni->lessThan($periodeSelesai) ? $hariIni->copy() : $periodeSelesai->copy();
+
+        $hariHarusAda = $batasAkhir->greaterThanOrEqualTo($batasAwal)
+            ? (int) $batasAwal->diffInDays($batasAkhir) + 1
+            : 0;
+
+        // Banyak TANGGAL UNIK yang punya record dalam rentang [batasAwal, batasAkhir]
+        // (satu tanggal bisa punya >1 record kalau lintas shift — hitung sekali).
+        $hariAdaRecord = $absensi
+            ->filter(fn ($r) => $r->tanggal
+                && $r->tanggal->copy()->startOfDay()->between($batasAwal, $batasAkhir))
+            ->map(fn ($r) => $r->tanggal->toDateString())
+            ->unique()
+            ->count();
+
+        $jumlahTidakTercatat = (int) max(0, $hariHarusAda - $hariAdaRecord);
+
         // ── (4) Potongan ketidakhadiran ────────────────────────────────────
         // Alpha (tidak_hadir): potong PENUH 1 hari kerja per kejadian.
         $potonganAlpha = (int) round($rateHarian * $jumlahAlpha);
@@ -207,12 +247,18 @@ class PayrollService
         // Sakit + izin: total kejadian dalam periode. Yang masih dalam kuota
         // tidak dipotong; yang MELEBIHI kuota dipotong SETENGAH hari kerja per
         // kejadian kelebihan.
-        $kuota            = (int) $setting->kuota_izin_sakit_per_bulan;
-        $totalSakitIzin   = $jumlahSakit + $jumlahIzin;
-        $kelebihanKuota   = max(0, $totalSakitIzin - $kuota);
+        $kuota = (int) $setting->kuota_izin_sakit_per_bulan;
+        $totalSakitIzin = $jumlahSakit + $jumlahIzin;
+        $kelebihanKuota = max(0, $totalSakitIzin - $kuota);
         $potonganSakitIzin = (int) round($rateHarian * 0.5 * $kelebihanKuota);
 
-        $potonganAbsen = $potonganAlpha + $potonganSakitIzin;
+        // Hari tidak tercatat: DEFAULT diberi potongan setara alpha (penuh 1 hari
+        // per hari kosong) supaya tidak ada yang lolos tanpa efek. Efeknya digabung
+        // ke potongan_absen agar subtotal & floor-ke-0 tetap benar tanpa mengubah
+        // logika lain; pembeda-nya disimpan terpisah di kolom jumlah_tidak_tercatat.
+        $potonganTidakTercatat = (int) round($rateHarian * $jumlahTidakTercatat);
+
+        $potonganAbsen = $potonganAlpha + $potonganSakitIzin + $potonganTidakTercatat;
 
         // ── (5) Uang lembur ────────────────────────────────────────────────
         // Semua record lembur 'approved' dalam periode; jumlahkan durasi (jam)
@@ -226,28 +272,29 @@ class PayrollService
             ->sum(fn ($l) => $l->durasi_menit);
 
         $jumlahJamLembur = (int) round($totalMenitLembur / 60);
-        $uangLembur      = $jumlahJamLembur * (int) $setting->rate_lembur_per_jam;
+        $uangLembur = $jumlahJamLembur * (int) $setting->rate_lembur_per_jam;
 
         // ── (6) Subtotal & gaji bersih (sebelum penyesuaian manual) ────────
         // subtotal = prorate − potongan telat − potongan absen + uang lembur.
         // Gaji bersih di-floor ke 0 (keputusan desain: tidak pernah negatif).
-        $subtotal        = $gajiPokokProrate - $potonganTelat - $potonganAbsen + $uangLembur;
+        $subtotal = $gajiPokokProrate - $potonganTelat - $potonganAbsen + $uangLembur;
         $totalGajiBersih = max(0, $subtotal);
 
         return [
-            'gaji_pokok_prorate'            => $gajiPokokProrate,
-            'jumlah_hadir'                  => $jumlahHadir,
-            'jumlah_kali_telat'             => $jumlahKaliTelat,
+            'gaji_pokok_prorate' => $gajiPokokProrate,
+            'jumlah_hadir' => $jumlahHadir,
+            'jumlah_kali_telat' => $jumlahKaliTelat,
             'total_menit_telat_kena_potong' => $totalMenitKenaPotong,
-            'potongan_telat'                => $potonganTelat,
-            'jumlah_alpha'                  => $jumlahAlpha,
-            'jumlah_sakit'                  => $jumlahSakit,
-            'jumlah_izin'                   => $jumlahIzin,
-            'potongan_absen'                => $potonganAbsen,
-            'jumlah_jam_lembur'             => $jumlahJamLembur,
-            'uang_lembur'                   => $uangLembur,
-            'total_penyesuaian'             => 0,
-            'total_gaji_bersih'             => $totalGajiBersih,
+            'potongan_telat' => $potonganTelat,
+            'jumlah_alpha' => $jumlahAlpha,
+            'jumlah_sakit' => $jumlahSakit,
+            'jumlah_izin' => $jumlahIzin,
+            'jumlah_tidak_tercatat' => $jumlahTidakTercatat,
+            'potongan_absen' => $potonganAbsen,
+            'jumlah_jam_lembur' => $jumlahJamLembur,
+            'uang_lembur' => $uangLembur,
+            'total_penyesuaian' => 0,
+            'total_gaji_bersih' => $totalGajiBersih,
         ];
     }
 
@@ -266,7 +313,7 @@ class PayrollService
             ->where('is_active', 1)
             ->where(function ($q) use ($periodeSelesai) {
                 $q->whereNull('tanggal_bergabung')
-                  ->orWhereDate('tanggal_bergabung', '<=', $periodeSelesai->toDateString());
+                    ->orWhereDate('tanggal_bergabung', '<=', $periodeSelesai->toDateString());
             })
             ->orderBy('name')
             ->get();
@@ -281,8 +328,8 @@ class PayrollService
      */
     public function generateDraft(Carbon $periodeMulai, Carbon $periodeSelesai, int $dibuatOleh, ?PayrollSetting $setting = null): PayrollRun
     {
-        $setting        = $setting ?? PayrollSetting::get();
-        $periodeMulai   = $periodeMulai->copy()->startOfDay();
+        $setting = $setting ?? PayrollSetting::get();
+        $periodeMulai = $periodeMulai->copy()->startOfDay();
         $periodeSelesai = $periodeSelesai->copy()->startOfDay();
 
         return DB::transaction(function () use ($periodeMulai, $periodeSelesai, $dibuatOleh, $setting) {
@@ -304,10 +351,10 @@ class PayrollService
                 ->each->delete();
 
             $run = PayrollRun::create([
-                'periode_mulai'   => $periodeMulai,
+                'periode_mulai' => $periodeMulai,
                 'periode_selesai' => $periodeSelesai,
-                'status'          => 'draft',
-                'dibuat_oleh'     => $dibuatOleh,
+                'status' => 'draft',
+                'dibuat_oleh' => $dibuatOleh,
             ]);
 
             foreach ($this->petugasUntukPeriode($periodeSelesai) as $petugas) {
@@ -315,7 +362,7 @@ class PayrollService
 
                 PayrollDetail::create(array_merge($hasil, [
                     'payroll_run_id' => $run->id,
-                    'user_id'        => $petugas->id,
+                    'user_id' => $petugas->id,
                 ]));
             }
 

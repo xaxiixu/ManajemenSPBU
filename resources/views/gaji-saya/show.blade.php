@@ -87,7 +87,9 @@
                 <td>
                     Ketidakhadiran
                     <div class="text-muted" style="font-size:.72rem;">
-                        Alpha {{ $d->jumlah_alpha }} · Sakit {{ $d->jumlah_sakit }} · Izin {{ $d->jumlah_izin }} (hadir {{ $d->jumlah_hadir }})
+                        {{-- Hari tidak tercatat digabung ke "tidak hadir" (istilah internal tidak
+                             ditampilkan ke petugas) agar rupiah potongan konsisten dengan jumlah hari. --}}
+                        Tidak hadir {{ $d->jumlah_alpha + $d->jumlah_tidak_tercatat }} · Sakit {{ $d->jumlah_sakit }} · Izin {{ $d->jumlah_izin }} (hadir {{ $d->jumlah_hadir }})
                     </div>
                 </td>
                 <td class="text-end {{ $d->potongan_absen > 0 ? 'text-danger' : '' }}">−Rp {{ number_format($d->potongan_absen) }}</td>

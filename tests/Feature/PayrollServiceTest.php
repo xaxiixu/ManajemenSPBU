@@ -90,7 +90,11 @@ class PayrollServiceTest extends TestCase
         // Lembur pending TIDAK dihitung
         Lembur::create(['user_id' => $petugas->id, 'tanggal' => '2026-07-08', 'jam_mulai' => '13:00', 'jam_selesai' => '16:00', 'alasan' => 'x', 'status' => 'pending']);
 
-        $h = $svc->hitung($petugas, $mulai, $selesai, $setting);
+        // hariIni sengaja di-set SEBELUM periode → tidak ada "hari berjalan", jadi
+        // deteksi hari-tidak-tercatat non-aktif dan test ini murni menguji komponen
+        // telat/alpha/sakit-izin/lembur. Fitur hari-tidak-tercatat diuji terpisah
+        // di test_hari_tidak_tercatat_*.
+        $h = $svc->hitung($petugas, $mulai, $selesai, $setting, $mulai->copy()->subDay());
 
         $this->assertSame(3000000, $h['gaji_pokok_prorate']);
         $this->assertSame(1, $h['jumlah_hadir']);
@@ -100,6 +104,7 @@ class PayrollServiceTest extends TestCase
         $this->assertSame(1, $h['jumlah_alpha']);
         $this->assertSame(2, $h['jumlah_sakit']);
         $this->assertSame(1, $h['jumlah_izin']);
+        $this->assertSame(0, $h['jumlah_tidak_tercatat']);
         $this->assertSame(150000, $h['potongan_absen']); // 100.000 alpha + 50.000 kelebihan kuota
         $this->assertSame(5, $h['jumlah_jam_lembur']);
         $this->assertSame(100000, $h['uang_lembur']);
@@ -114,10 +119,12 @@ class PayrollServiceTest extends TestCase
         $petugas = $this->petugas(['tanggal_bergabung' => '2026-07-11']);
         $svc     = new PayrollService();
 
-        $h = $svc->hitung($petugas, Carbon::create(2026, 6, 26), Carbon::create(2026, 7, 25), $setting);
+        // Isolasi hari-tidak-tercatat (hariIni sebelum periode) — fokus prorate.
+        $h = $svc->hitung($petugas, Carbon::create(2026, 6, 26), Carbon::create(2026, 7, 25), $setting, Carbon::create(2026, 6, 25));
 
         // 11 Jul s/d 25 Jul = 15 hari × 100.000 = 1.500.000
         $this->assertSame(1500000, $h['gaji_pokok_prorate']);
+        $this->assertSame(0, $h['jumlah_tidak_tercatat']);
         $this->assertSame(1500000, $h['total_gaji_bersih']);
     }
 
@@ -129,7 +136,8 @@ class PayrollServiceTest extends TestCase
 
         Absensis::create(['user_id' => $petugas->id, 'tanggal' => '2026-07-01', 'shift' => 'Pagi', 'status_hadir' => 'hadir', 'menit_telat' => 10]);
 
-        $h = $svc->hitung($petugas, Carbon::create(2026, 6, 26), Carbon::create(2026, 7, 25), $setting);
+        // Isolasi hari-tidak-tercatat (hariIni sebelum periode) — fokus toleransi telat.
+        $h = $svc->hitung($petugas, Carbon::create(2026, 6, 26), Carbon::create(2026, 7, 25), $setting, Carbon::create(2026, 6, 25));
 
         $this->assertSame(0, $h['jumlah_kali_telat']);
         $this->assertSame(0, $h['potongan_telat']);
@@ -148,9 +156,75 @@ class PayrollServiceTest extends TestCase
             Absensis::create(['user_id' => $petugas->id, 'tanggal' => $tgl, 'shift' => 'Pagi', 'status_hadir' => 'tidak_hadir']);
         }
 
-        $h = $svc->hitung($petugas, Carbon::create(2026, 6, 26), Carbon::create(2026, 7, 25), $setting);
+        // Isolasi hari-tidak-tercatat (semua 30 hari sudah terisi alpha, jadi tidak
+        // ada yang kosong; hariIni di-set deterministik agar tidak tergantung jam nyata).
+        $h = $svc->hitung($petugas, Carbon::create(2026, 6, 26), Carbon::create(2026, 7, 25), $setting, Carbon::create(2026, 6, 25));
 
         $this->assertSame(30, $h['jumlah_alpha']);
+        $this->assertSame(0, $h['jumlah_tidak_tercatat']);
+        $this->assertSame(0, $h['total_gaji_bersih']);
+    }
+
+    public function test_hari_tidak_tercatat_default_dipotong_setara_alpha(): void
+    {
+        $setting = $this->setting();
+        $petugas = $this->petugas(); // gaji 3.000.000, rate harian 100.000
+        $svc     = new PayrollService();
+
+        $mulai   = Carbon::create(2026, 6, 26);
+        $selesai = Carbon::create(2026, 7, 25);         // 30 hari
+        $hariIni = Carbon::create(2026, 7, 25);         // seluruh periode sudah berjalan
+
+        // Hanya 2 tanggal yang punya record (1 hadir, 1 alpha) → 28 tanggal kosong.
+        Absensis::create(['user_id' => $petugas->id, 'tanggal' => '2026-07-01', 'shift' => 'Pagi', 'status_hadir' => 'hadir']);
+        Absensis::create(['user_id' => $petugas->id, 'tanggal' => '2026-07-02', 'shift' => 'Pagi', 'status_hadir' => 'tidak_hadir']);
+
+        $h = $svc->hitung($petugas, $mulai, $selesai, $setting, $hariIni);
+
+        $this->assertSame(1, $h['jumlah_alpha']);
+        $this->assertSame(28, $h['jumlah_tidak_tercatat']);          // 30 − 2 tanggal terisi
+        // potongan_absen = alpha 100.000 + tidak-tercatat 28×100.000 = 2.900.000
+        $this->assertSame(2900000, $h['potongan_absen']);
+        // 3.000.000 − 2.900.000 = 100.000
+        $this->assertSame(100000, $h['total_gaji_bersih']);
+    }
+
+    public function test_hari_tidak_tercatat_tidak_menghukum_tanggal_masa_depan(): void
+    {
+        $setting = $this->setting();
+        $petugas = $this->petugas();
+        $svc     = new PayrollService();
+
+        $mulai   = Carbon::create(2026, 6, 26);
+        $selesai = Carbon::create(2026, 7, 25);
+        $hariIni = Carbon::create(2026, 7, 10);   // periode berjalan; 11–25 Jul belum terjadi
+
+        // 1 record pada 10 Jul. Batas hitung = 26 Jun s/d 10 Jul = 15 hari.
+        Absensis::create(['user_id' => $petugas->id, 'tanggal' => '2026-07-10', 'shift' => 'Pagi', 'status_hadir' => 'hadir']);
+
+        $h = $svc->hitung($petugas, $mulai, $selesai, $setting, $hariIni);
+
+        // 15 hari harus ada − 1 tercatat = 14 (BUKAN 29; tanggal 11–25 Jul tidak dihukum).
+        $this->assertSame(14, $h['jumlah_tidak_tercatat']);
+    }
+
+    public function test_hari_tidak_tercatat_tidak_menghukum_sebelum_bergabung(): void
+    {
+        $setting = $this->setting();
+        // Bergabung 11 Jul → hari 26 Jun–10 Jul bukan tanggung jawabnya.
+        $petugas = $this->petugas(['tanggal_bergabung' => '2026-07-11']);
+        $svc     = new PayrollService();
+
+        $mulai   = Carbon::create(2026, 6, 26);
+        $selesai = Carbon::create(2026, 7, 25);
+        $hariIni = Carbon::create(2026, 7, 25);
+
+        // Tidak ada record sama sekali. Batas = 11 Jul s/d 25 Jul = 15 hari.
+        $h = $svc->hitung($petugas, $mulai, $selesai, $setting, $hariIni);
+
+        $this->assertSame(1500000, $h['gaji_pokok_prorate']);        // prorate 15 hari
+        $this->assertSame(15, $h['jumlah_tidak_tercatat']);          // BUKAN 30
+        // potongan = 15 × 100.000 = 1.500.000 → habis, gaji bersih 0 (floor).
         $this->assertSame(0, $h['total_gaji_bersih']);
     }
 }

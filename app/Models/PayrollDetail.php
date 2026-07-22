@@ -22,6 +22,7 @@ class PayrollDetail extends Model
         'jumlah_alpha',
         'jumlah_sakit',
         'jumlah_izin',
+        'jumlah_tidak_tercatat',
         'potongan_absen',
         'jumlah_jam_lembur',
         'uang_lembur',
@@ -30,19 +31,20 @@ class PayrollDetail extends Model
     ];
 
     protected $casts = [
-        'gaji_pokok_prorate'            => 'integer',
-        'jumlah_hadir'                  => 'integer',
-        'jumlah_kali_telat'             => 'integer',
+        'gaji_pokok_prorate' => 'integer',
+        'jumlah_hadir' => 'integer',
+        'jumlah_kali_telat' => 'integer',
         'total_menit_telat_kena_potong' => 'integer',
-        'potongan_telat'                => 'integer',
-        'jumlah_alpha'                  => 'integer',
-        'jumlah_sakit'                  => 'integer',
-        'jumlah_izin'                   => 'integer',
-        'potongan_absen'                => 'integer',
-        'jumlah_jam_lembur'             => 'integer',
-        'uang_lembur'                   => 'integer',
-        'total_penyesuaian'             => 'integer',
-        'total_gaji_bersih'             => 'integer',
+        'potongan_telat' => 'integer',
+        'jumlah_alpha' => 'integer',
+        'jumlah_sakit' => 'integer',
+        'jumlah_izin' => 'integer',
+        'jumlah_tidak_tercatat' => 'integer',
+        'potongan_absen' => 'integer',
+        'jumlah_jam_lembur' => 'integer',
+        'uang_lembur' => 'integer',
+        'total_penyesuaian' => 'integer',
+        'total_gaji_bersih' => 'integer',
     ];
 
     public function payrollRun()

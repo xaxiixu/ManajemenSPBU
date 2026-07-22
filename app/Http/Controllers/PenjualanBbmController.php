@@ -8,6 +8,7 @@ use App\Models\Absensis;
 use App\Models\MasterBbm;
 use App\Models\ShiftMaster;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 
@@ -104,24 +105,29 @@ class PenjualanBbmController extends Controller
         $fotoAwal  = $request->file('foto_meter_awal')->store('penjualan/meter', 'public');
         $fotoAkhir = $request->file('foto_meter_akhir')->store('penjualan/meter', 'public');
 
-        $penjualan = PenjualanBbm::create([
-            'tanggal'           => $validated['tanggal'],
-            'shift'             => $validated['shift'],
-            'absensis_id'       => $absensi->id,
-            'pulau'             => $validated['pulau'],
-            'jenis_bbm'         => $masterBbm->jenis_bbm,
-            'ron'               => $masterBbm->ron,
-            'coa_pendapatan_id' => $masterBbm->coa_pendapatan_id,
-            'meter_awal'        => $validated['meter_awal'],
-            'meter_akhir'       => $validated['meter_akhir'],
-            'harga_per_liter'   => $masterBbm->harga_per_liter,
-            'foto_meter_awal'   => $fotoAwal,
-            'foto_meter_akhir'  => $fotoAkhir,
-            'catatan'           => $validated['catatan'] ?? null,
-            'dicatat_oleh'      => auth()->id(),
-        ]);
+        // Insert penjualan (memicu event saving() yang menyambung ke stok
+        // tangki - lihat PenjualanBbm::boot()) + generate jurnal HARUS atomik:
+        // kalau salah satu gagal, semuanya batal (termasuk pengurangan stok).
+        DB::transaction(function () use ($validated, $masterBbm, $absensi, $fotoAwal, $fotoAkhir) {
+            $penjualan = PenjualanBbm::create([
+                'tanggal'           => $validated['tanggal'],
+                'shift'             => $validated['shift'],
+                'absensis_id'       => $absensi->id,
+                'pulau'             => $validated['pulau'],
+                'jenis_bbm'         => $masterBbm->jenis_bbm,
+                'ron'               => $masterBbm->ron,
+                'coa_pendapatan_id' => $masterBbm->coa_pendapatan_id,
+                'meter_awal'        => $validated['meter_awal'],
+                'meter_akhir'       => $validated['meter_akhir'],
+                'harga_per_liter'   => $masterBbm->harga_per_liter,
+                'foto_meter_awal'   => $fotoAwal,
+                'foto_meter_akhir'  => $fotoAkhir,
+                'catatan'           => $validated['catatan'] ?? null,
+                'dicatat_oleh'      => auth()->id(),
+            ]);
 
-        JurnalService::dariPenjualan($penjualan);
+            JurnalService::dariPenjualan($penjualan);
+        });
 
         return redirect()->route('penjualan-bbm.index')
             ->with('success', 'Data penjualan berhasil disimpan.');

@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\JurnalUmum;
 use App\Models\PayrollDetail;
 use App\Models\PayrollPenyesuaian;
 use App\Models\PayrollRun;
 use App\Models\PayrollSetting;
+use App\Services\JurnalService;
 use App\Services\PayrollService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -21,8 +23,8 @@ class PayrollController extends Controller
      */
     public function index()
     {
-        $setting   = PayrollSetting::get();
-        $kandidat  = $this->payroll->daftarKandidatPeriode(6, $setting);
+        $setting = PayrollSetting::get();
+        $kandidat = $this->payroll->daftarKandidatPeriode(6, $setting);
 
         return view('penggajian.index', compact('kandidat', 'setting'));
     }
@@ -33,7 +35,7 @@ class PayrollController extends Controller
     public function generate(Request $request)
     {
         $validated = $request->validate([
-            'periode_mulai'   => 'required|date',
+            'periode_mulai' => 'required|date',
             'periode_selesai' => 'required|date|after_or_equal:periode_mulai',
         ]);
 
@@ -60,14 +62,19 @@ class PayrollController extends Controller
 
         // Rekap total keseluruhan run (untuk footer & export)
         $rekap = [
-            'gaji_pokok'    => $payrollRun->details->sum('gaji_pokok_prorate'),
-            'potongan'      => $payrollRun->details->sum(fn ($d) => $d->potongan_telat + $d->potongan_absen),
-            'lembur'        => $payrollRun->details->sum('uang_lembur'),
-            'penyesuaian'   => $payrollRun->details->sum('total_penyesuaian'),
-            'bersih'        => $payrollRun->details->sum('total_gaji_bersih'),
+            'gaji_pokok' => $payrollRun->details->sum('gaji_pokok_prorate'),
+            'potongan' => $payrollRun->details->sum(fn ($d) => $d->potongan_telat + $d->potongan_absen),
+            'lembur' => $payrollRun->details->sum('uang_lembur'),
+            'penyesuaian' => $payrollRun->details->sum('total_penyesuaian'),
+            'bersih' => $payrollRun->details->sum('total_gaji_bersih'),
         ];
 
-        return view('penggajian.show', compact('payrollRun', 'rekap'));
+        // Jurnal akuntansi terkait (dibuat saat run dikirim) — untuk jejak audit.
+        $jurnal = $payrollRun->isDikirim()
+            ? JurnalUmum::where('sumber', 'payroll')->where('referensi_id', $payrollRun->id)->first()
+            : null;
+
+        return view('penggajian.show', compact('payrollRun', 'rekap', 'jurnal'));
     }
 
     /**
@@ -96,16 +103,28 @@ class PayrollController extends Controller
                 ->with('error', 'Payroll ini sudah pernah dikirim.');
         }
 
-        DB::transaction(function () use ($payrollRun) {
-            $payrollRun->update([
-                'status'       => 'dikirim',
-                'dikirim_oleh' => auth()->id(),
-                'dikirim_pada' => now(),
-            ]);
-        });
+        try {
+            DB::transaction(function () use ($payrollRun) {
+                // 1) Kunci run jadi final.
+                $payrollRun->update([
+                    'status' => 'dikirim',
+                    'dikirim_oleh' => auth()->id(),
+                    'dikirim_pada' => now(),
+                ]);
+
+                // 2) Catat beban gaji ke jurnal akuntansi. Dilempar exception kalau
+                //    akun COA tidak lengkap → seluruh transaksi (termasuk perubahan
+                //    status di atas) ikut rollback, jadi tidak ada payroll "dikirim"
+                //    tanpa jurnal. Idempotent terhadap percobaan kirim ulang.
+                JurnalService::dariPayroll($payrollRun->fresh());
+            });
+        } catch (\Throwable $e) {
+            return redirect()->route('penggajian.show', $payrollRun)
+                ->with('error', 'Gagal mengirim slip gaji: '.$e->getMessage());
+        }
 
         return redirect()->route('penggajian.show', $payrollRun)
-            ->with('success', 'Slip gaji berhasil dikirim. Data periode ini kini terkunci.');
+            ->with('success', 'Slip gaji berhasil dikirim & beban gaji tercatat di jurnal. Data periode ini kini terkunci.');
     }
 
     // ── Penyesuaian manual (hanya saat run masih draft) ───────────────────
@@ -123,8 +142,8 @@ class PayrollController extends Controller
 
         $validated = $request->validate([
             'keterangan' => 'required|string|max:255',
-            'tipe'       => 'required|in:bonus,potongan',
-            'nominal'    => 'required|integer|min:1',
+            'tipe' => 'required|in:bonus,potongan',
+            'nominal' => 'required|integer|min:1',
         ]);
 
         // Simpan jumlah bertanda: bonus positif, potongan negatif.
@@ -134,8 +153,8 @@ class PayrollController extends Controller
 
         DB::transaction(function () use ($detail, $validated, $jumlah) {
             $detail->penyesuaian()->create([
-                'keterangan'  => $validated['keterangan'],
-                'jumlah'      => $jumlah,
+                'keterangan' => $validated['keterangan'],
+                'jumlah' => $jumlah,
                 'dibuat_oleh' => auth()->id(),
             ]);
 
@@ -144,7 +163,7 @@ class PayrollController extends Controller
         });
 
         // Kembali ke halaman detail, buka lagi baris yang sedang diedit.
-        return redirect()->to(route('penggajian.show', $detail->payroll_run_id) . '?edit=' . $detail->id)
+        return redirect()->to(route('penggajian.show', $detail->payroll_run_id).'?edit='.$detail->id)
             ->with('success', 'Penyesuaian ditambahkan.');
     }
 
@@ -158,7 +177,7 @@ class PayrollController extends Controller
             $detail->refreshTotal();
         });
 
-        return redirect()->to(route('penggajian.show', $detail->payroll_run_id) . '?edit=' . $detail->id)
+        return redirect()->to(route('penggajian.show', $detail->payroll_run_id).'?edit='.$detail->id)
             ->with('success', 'Penyesuaian dihapus.');
     }
 

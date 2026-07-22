@@ -28,6 +28,11 @@
         </div>
     </div>
     <div class="d-flex gap-2">
+        @if(!$isDraft && $jurnal)
+            <a href="{{ route('jurnal-umum.show', $jurnal) }}" class="btn btn-outline-primary">
+                <i class="bi bi-journal-text me-1"></i>Lihat Jurnal Terkait
+            </a>
+        @endif
         <button type="button" onclick="window.print()" class="btn btn-outline-secondary">
             <i class="bi bi-printer me-1"></i>Print / Export
         </button>
@@ -54,6 +59,33 @@
 <div class="alert alert-warning d-flex align-items-center gap-2 d-print-none">
     <i class="bi bi-info-circle-fill"></i>
     <div>Ini masih <strong>draft</strong>. Kamu bisa menambah penyesuaian manual per petugas. Angka baru final setelah <strong>Kirim Slip Gaji</strong> (aksi terkunci & tidak bisa dibatalkan).</div>
+</div>
+@endif
+
+{{-- Peringatan hari tidak tercatat: tanggal kerja tanpa record absensi sama sekali. --}}
+@php $petugasTidakTercatat = $payrollRun->details->where('jumlah_tidak_tercatat', '>', 0); @endphp
+@if($petugasTidakTercatat->count())
+<div class="alert alert-warning d-print-none">
+    <div class="d-flex align-items-center gap-2 mb-2">
+        <i class="bi bi-exclamation-triangle-fill fs-5"></i>
+        <strong>Ada hari kerja yang tidak tercatat kehadirannya — mohon verifikasi sebelum kirim final.</strong>
+    </div>
+    <p class="small mb-2">
+        Tanggal berikut belum punya catatan absensi sama sekali (bukan hadir/sakit/izin/alpha).
+        Untuk pengaman, hari-hari ini <strong>otomatis dipotong setara alpha</strong> pada draft ini.
+        @if($isDraft)
+            Jika sebenarnya petugas hadir/sakit/izin, catat dulu status yang benar di
+            <strong>Data Petugas</strong>, lalu <strong>Generate Ulang</strong> draft periode ini.
+        @endif
+    </p>
+    <ul class="small mb-0">
+        @foreach($petugasTidakTercatat as $d)
+            <li>
+                <strong>{{ $d->user->name ?? 'User dihapus' }}</strong> —
+                <span class="badge bg-warning text-dark">{{ $d->jumlah_tidak_tercatat }} hari tidak tercatat</span>
+            </li>
+        @endforeach
+    </ul>
 </div>
 @endif
 
@@ -84,6 +116,12 @@
                             <div class="fw-semibold">{{ $d->user->name ?? 'User dihapus' }}</div>
                             @if($d->gaji_pokok_prorate < ($d->user->gaji_pokok ?? 0))
                                 <span class="badge bg-info-subtle text-info border border-info-subtle" style="font-size:.65rem;">prorate</span>
+                            @endif
+                            @if($d->jumlah_tidak_tercatat > 0)
+                                <span class="badge bg-warning text-dark" style="font-size:.65rem;"
+                                    title="{{ $d->jumlah_tidak_tercatat }} hari tanpa catatan absensi — dipotong setara alpha, harap diverifikasi">
+                                    <i class="bi bi-exclamation-triangle-fill"></i> {{ $d->jumlah_tidak_tercatat }} hari tidak tercatat
+                                </span>
                             @endif
                         </td>
                         <td class="text-end">{{ number_format($d->gaji_pokok_prorate) }}</td>

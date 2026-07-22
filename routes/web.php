@@ -6,6 +6,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PresensiController;
 use App\Http\Controllers\PengeluaranController;
 use App\Http\Controllers\PenjualanBbmController;
+use App\Http\Controllers\PembelianBbmController;
 use App\Http\Controllers\MasterBbmController;
 use App\Http\Controllers\CoaController;
 use App\Http\Controllers\JurnalUmumController;
@@ -96,6 +97,18 @@ Route::middleware('auth')->group(function () {
     Route::middleware('role:pengawas,manager')->group(function () {
         Route::get('/penjualan-bbm', [PenjualanBbmController::class, 'index'])->name('penjualan-bbm.index');
         Route::get('/penjualan-bbm/{penjualanBbm}', [PenjualanBbmController::class, 'show'])->name('penjualan-bbm.show');
+    });
+
+    // ── Pengawas: input pembelian BBM dari supplier ───
+    Route::middleware('role:pengawas')->group(function () {
+        Route::get('/pembelian-bbm/create', [PembelianBbmController::class, 'create'])->name('pembelian-bbm.create');
+        Route::post('/pembelian-bbm', [PembelianBbmController::class, 'store'])->name('pembelian-bbm.store');
+    });
+
+    // ── Lihat pembelian BBM: pengawas, manager (bukan petugas) ─
+    Route::middleware('role:pengawas,manager')->group(function () {
+        Route::get('/pembelian-bbm', [PembelianBbmController::class, 'index'])->name('pembelian-bbm.index');
+        Route::get('/pembelian-bbm/{pembelianBbm}', [PembelianBbmController::class, 'show'])->name('pembelian-bbm.show');
     });
 
     // ── Pengawas + Manager: data petugas, jadwal shift, approval ─

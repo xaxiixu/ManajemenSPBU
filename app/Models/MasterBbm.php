@@ -12,12 +12,17 @@ class MasterBbm extends Model
     protected $table = 'master_bbm';
 
     protected $fillable = [
-        'jenis_bbm', 'ron', 'harga_per_liter', 'coa_pendapatan_id', 'is_aktif',
+        'jenis_bbm', 'ron', 'harga_per_liter', 'coa_pendapatan_id', 'coa_persediaan_id', 'is_aktif',
     ];
 
     public function coa()
     {
         return $this->belongsTo(Coa::class, 'coa_pendapatan_id');
+    }
+
+    public function coaPersediaan()
+    {
+        return $this->belongsTo(Coa::class, 'coa_persediaan_id');
     }
 
     public function penjualanBbm()

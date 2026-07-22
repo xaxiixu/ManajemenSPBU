@@ -36,11 +36,25 @@
                         <span class="badge bg-success">Penjualan BBM</span>
                     @elseif($jurnalUmum->sumber == 'pengeluaran')
                         <span class="badge bg-danger">Pengeluaran</span>
+                    @elseif($jurnalUmum->sumber == 'payroll')
+                        <span class="badge bg-primary">Gaji</span>
+                    @elseif($jurnalUmum->sumber == 'pembelian_bbm')
+                        <span class="badge bg-info text-dark">Pembelian BBM</span>
                     @else
                         <span class="badge bg-secondary">Manual</span>
                     @endif
                 </td>
             </tr>
+            @if($jurnalUmum->sumber == 'payroll' && $jurnalUmum->referensi_id)
+            <tr>
+                <td class="text-muted">Referensi</td>
+                <td>
+                    <a href="{{ route('penggajian.show', $jurnalUmum->referensi_id) }}">
+                        <i class="bi bi-cash-stack me-1"></i>Lihat Payroll Terkait
+                    </a>
+                </td>
+            </tr>
+            @endif
         </table>
     </div>
 </div>
