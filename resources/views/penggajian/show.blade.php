@@ -29,7 +29,7 @@
     </div>
     <div class="d-flex gap-2">
         @if(!$isDraft && $jurnal)
-            <a href="{{ route('jurnal-umum.show', $jurnal) }}" class="btn btn-outline-primary">
+            <a href="{{ route('jurnal-umum.index', ['dari' => $jurnal->tanggal->toDateString(), 'sampai' => $jurnal->tanggal->toDateString()]) }}#jurnal-{{ $jurnal->id }}" class="btn btn-outline-primary">
                 <i class="bi bi-journal-text me-1"></i>Lihat Jurnal Terkait
             </a>
         @endif

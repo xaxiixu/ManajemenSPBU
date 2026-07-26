@@ -150,7 +150,7 @@ Route::middleware('auth')->group(function () {
         Route::resource('master-bbm', MasterBbmController::class)->except(['show']);
 
         // Jurnal & Buku Besar read only
-        Route::resource('jurnal-umum', JurnalUmumController::class)->only(['index', 'show']);
+        Route::resource('jurnal-umum', JurnalUmumController::class)->only(['index']);
         Route::resource('buku-besar', BukuBesarController::class)->only(['index', 'show']);
 
         // Neraca: read-only, snapshot saldo semua akun per tanggal

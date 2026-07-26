@@ -26,6 +26,15 @@
                 <label class="form-label fw-semibold">Atau Pilih Bulan</label>
                 <input type="month" name="bulan" class="form-control" value="{{ $bulan }}">
             </div>
+            <div class="col-md-3">
+                <label class="form-label fw-semibold">Sumber</label>
+                <select name="sumber" class="form-select">
+                    <option value="">Semua Sumber</option>
+                    @foreach($sumberOptions as $value => $label)
+                        <option value="{{ $value }}" @selected($sumber == $value)>{{ $label }}</option>
+                    @endforeach
+                </select>
+            </div>
             <div class="col-md-2">
                 <label class="form-label fw-semibold">&nbsp;</label>
                 <button type="submit" class="btn btn-danger w-100">
@@ -45,23 +54,82 @@
     </div>
 </div>
 
+{{-- Summary Cards --}}
+<div class="row g-3 mb-3">
+    <div class="col-md-4">
+        <div class="card h-100" style="border-left: 4px solid #27ae60;">
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-3">
+                    <div style="width:50px;height:50px;background:#d4edda;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                        <i class="bi bi-arrow-down-circle text-success fs-4"></i>
+                    </div>
+                    <div>
+                        <div class="text-muted small">Total Debit</div>
+                        <div class="fw-bold fs-5 text-success">Rp {{ number_format($totalDebit) }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100" style="border-left: 4px solid #2980b9;">
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-3">
+                    <div style="width:50px;height:50px;background:#d6eaf8;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                        <i class="bi bi-arrow-up-circle text-primary fs-4"></i>
+                    </div>
+                    <div>
+                        <div class="text-muted small">Total Kredit</div>
+                        <div class="fw-bold fs-5 text-primary">Rp {{ number_format($totalKredit) }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100" style="border-left: 4px solid {{ $selisih == 0 ? '#27ae60' : '#e74c3c' }};">
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-3">
+                    <div style="width:50px;height:50px;background:{{ $selisih == 0 ? '#d4edda' : '#f8d7da' }};border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                        <i class="bi bi-{{ $selisih == 0 ? 'check-circle' : 'exclamation-triangle' }} {{ $selisih == 0 ? 'text-success' : 'text-danger' }} fs-4"></i>
+                    </div>
+                    <div>
+                        <div class="text-muted small">Selisih</div>
+                        <div class="fw-bold fs-5 {{ $selisih == 0 ? 'text-success' : 'text-danger' }}">
+                            Rp {{ number_format(abs($selisih)) }}
+                        </div>
+                        @if($selisih == 0)
+                            <span class="badge bg-success">Seimbang</span>
+                        @else
+                            <span class="badge bg-danger">Tidak Seimbang</span>
+                        @endif
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="card">
     <div class="card-body p-0">
         <table class="table table-hover mb-0">
             <thead class="table-light">
                 <tr>
+                    <th style="width:2.5rem;"></th>
                     <th>No. Jurnal</th>
                     <th>Tanggal</th>
                     <th>Keterangan</th>
                     <th>Sumber</th>
                     <th class="text-end">Total Debit (Rp)</th>
                     <th class="text-end">Total Kredit (Rp)</th>
-                    <th>Aksi</th>
                 </tr>
             </thead>
             <tbody>
                 @forelse($data as $item)
-                <tr>
+                <tr class="jurnal-row" role="button" data-bs-toggle="collapse" data-bs-target="#detail-{{ $item->id }}" aria-expanded="false" aria-controls="detail-{{ $item->id }}">
+                    <td class="text-center">
+                        <i class="bi bi-chevron-right jurnal-chevron text-muted"></i>
+                    </td>
                     <td><code>{{ $item->nomor_jurnal }}</code></td>
                     <td>{{ $item->tanggal->format('d/m/Y') }}</td>
                     <td>{{ $item->keterangan }}</td>
@@ -80,10 +148,51 @@
                     </td>
                     <td class="text-end">{{ number_format($item->total_debit) }}</td>
                     <td class="text-end">{{ number_format($item->total_kredit) }}</td>
-                    <td>
-                        <a href="{{ route('jurnal-umum.show', $item) }}" class="btn btn-sm btn-outline-primary">
-                            <i class="bi bi-eye"></i> Detail
-                        </a>
+                </tr>
+                <tr class="collapse" id="detail-{{ $item->id }}" data-jurnal-row-id="{{ $item->id }}">
+                    <td colspan="7" class="p-0 border-0">
+                        <div class="bg-light p-3">
+                            @if($item->sumber == 'payroll' && $item->referensi_id)
+                                <div class="mb-2">
+                                    <a href="{{ route('penggajian.show', $item->referensi_id) }}">
+                                        <i class="bi bi-cash-stack me-1"></i>Lihat Payroll Terkait
+                                    </a>
+                                </div>
+                            @endif
+                            <table class="table table-sm bg-white mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Kode Akun</th>
+                                        <th>Nama Akun</th>
+                                        <th>Keterangan</th>
+                                        <th class="text-end">Debit (Rp)</th>
+                                        <th class="text-end">Kredit (Rp)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($item->details as $detail)
+                                    <tr>
+                                        <td><code>{{ $detail->coa->kode_akun }}</code></td>
+                                        <td>{{ $detail->coa->nama_akun }}</td>
+                                        <td class="text-muted small">{{ $detail->keterangan }}</td>
+                                        <td class="text-end">
+                                            {{ $detail->posisi == 'debit' ? number_format($detail->jumlah) : '-' }}
+                                        </td>
+                                        <td class="text-end">
+                                            {{ $detail->posisi == 'kredit' ? number_format($detail->jumlah) : '-' }}
+                                        </td>
+                                    </tr>
+                                    @endforeach
+                                </tbody>
+                                <tfoot class="table-light">
+                                    <tr>
+                                        <th colspan="3" class="text-end">Total</th>
+                                        <th class="text-end">{{ number_format($item->total_debit) }}</th>
+                                        <th class="text-end">{{ number_format($item->total_kredit) }}</th>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
                     </td>
                 </tr>
                 @empty
@@ -97,4 +206,35 @@
         </table>
     </div>
 </div>
+
+@push('styles')
+<style>
+    .jurnal-row[aria-expanded="true"] .jurnal-chevron { transform: rotate(90deg); }
+    .jurnal-chevron { transition: transform 0.15s ease; }
+</style>
+@endpush
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.jurnal-row').forEach(function (row) {
+        var targetId = row.getAttribute('data-bs-target');
+        var target = document.querySelector(targetId);
+        if (!target) return;
+        target.addEventListener('show.bs.collapse', function () { row.setAttribute('aria-expanded', 'true'); });
+        target.addEventListener('hide.bs.collapse', function () { row.setAttribute('aria-expanded', 'false'); });
+    });
+
+    if (window.location.hash.startsWith('#jurnal-')) {
+        var jurnalId = window.location.hash.replace('#jurnal-', '');
+        var detailRow = document.getElementById('detail-' + jurnalId);
+        if (detailRow) {
+            var collapse = bootstrap.Collapse.getOrCreateInstance(detailRow, { toggle: false });
+            collapse.show();
+            detailRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }
+});
+</script>
+@endpush
 @endsection
