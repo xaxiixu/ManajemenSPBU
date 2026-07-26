@@ -12,6 +12,7 @@ use App\Http\Controllers\MasterBbmController;
 use App\Http\Controllers\CoaController;
 use App\Http\Controllers\JurnalUmumController;
 use App\Http\Controllers\BukuBesarController;
+use App\Http\Controllers\NeracaController;
 use App\Http\Controllers\LaporanLabaRugiController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\PetugasController;
@@ -22,6 +23,7 @@ use App\Http\Controllers\ApprovalController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PengaturanGajiController;
 use App\Http\Controllers\PayrollController;
+use App\Http\Controllers\SaldoAwalController;
 
 // ── Auth ─────────────────────────────────────────────
 Route::middleware('guest')->group(function () {
@@ -150,6 +152,9 @@ Route::middleware('auth')->group(function () {
         // Jurnal & Buku Besar read only
         Route::resource('jurnal-umum', JurnalUmumController::class)->only(['index', 'show']);
         Route::resource('buku-besar', BukuBesarController::class)->only(['index', 'show']);
+
+        // Neraca: read-only, snapshot saldo semua akun per tanggal
+        Route::get('/neraca', [NeracaController::class, 'index'])->name('neraca.index');
     });
 
     // ── Manager only: pengaturan & manajemen user ─────
@@ -161,6 +166,11 @@ Route::middleware('auth')->group(function () {
         Route::get('/users/{user}/edit', [UserController::class, 'edit'])->name('users.edit');
         Route::put('/users/{user}', [UserController::class, 'update'])->name('users.update');
         Route::delete('/users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
+
+        // Saldo Awal: one-time setup modal awal pembukuan (kas + persediaan awal)
+        Route::get('/saldo-awal', [SaldoAwalController::class, 'index'])->name('saldo-awal.index');
+        Route::get('/saldo-awal/create', [SaldoAwalController::class, 'create'])->name('saldo-awal.create');
+        Route::post('/saldo-awal', [SaldoAwalController::class, 'store'])->name('saldo-awal.store');
     });
 
     // ── Manager: Payroll (pengaturan gaji + penggajian) ───

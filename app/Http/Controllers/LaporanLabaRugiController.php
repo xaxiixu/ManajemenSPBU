@@ -30,8 +30,9 @@ class LaporanLabaRugiController extends Controller
                 return $coa;
             });
 
-        // ── Beban bulan ini ────────────────────────────
-        $beban = Coa::where('kategori', 'beban')
+        // ── HPP bulan ini (akun 5104 saja) ──────────────
+        $hpp = Coa::where('kategori', 'beban')
+            ->where('kode_akun', '5104')
             ->where('is_aktif', 1)
             ->orderBy('kode_akun')
             ->get()
@@ -45,9 +46,34 @@ class LaporanLabaRugiController extends Controller
                 return $coa;
             });
 
-        $totalPendapatan = $pendapatan->sum('total');
-        $totalBeban      = $beban->sum('total');
-        $labaRugi        = $totalPendapatan - $totalBeban;
+        // ── Beban Operasional bulan ini (semua akun beban KECUALI 5104) ─
+        $bebanOperasional = Coa::where('kategori', 'beban')
+            ->where('kode_akun', '!=', '5104')
+            ->where('is_aktif', 1)
+            ->orderBy('kode_akun')
+            ->get()
+            ->map(function($coa) use ($tahun, $bln) {
+                $coa->total = JurnalDetail::where('coa_id', $coa->id)
+                    ->where('posisi', 'debit')
+                    ->whereHas('jurnal', fn($q) => $q
+                        ->whereYear('tanggal', $tahun)
+                        ->whereMonth('tanggal', $bln))
+                    ->sum('jumlah');
+                return $coa;
+            });
+
+        $totalPendapatan       = $pendapatan->sum('total');
+        $totalHpp              = $hpp->sum('total');
+        $totalBebanOperasional = $bebanOperasional->sum('total');
+        $totalBeban            = $totalHpp + $totalBebanOperasional;
+
+        // Laba Kotor = Pendapatan - HPP, lalu Laba Bersih = Laba Kotor -
+        // Beban Operasional. Secara nominal identik dengan totalPendapatan -
+        // totalBeban lama (totalBeban = totalHpp + totalBebanOperasional),
+        // cuma dipecah jadi 2 langkah supaya strukturnya proper income
+        // statement (ada baris Laba Kotor di antaranya).
+        $labaKotor  = $totalPendapatan - $totalHpp;
+        $labaBersih = $labaKotor - $totalBebanOperasional;
 
         // ── Tren 6 bulan terakhir ──────────────────────
         $trenLabels     = [];
@@ -91,14 +117,15 @@ class LaporanLabaRugiController extends Controller
                 'values' => $pendapatan->where('total', '>', 0)->pluck('total')->values()->toArray(),
             ],
             'beban' => [
-                'labels' => $beban->where('total', '>', 0)->pluck('nama_akun')->values()->toArray(),
-                'values' => $beban->where('total', '>', 0)->pluck('total')->values()->toArray(),
+                'labels' => $bebanOperasional->where('total', '>', 0)->pluck('nama_akun')->values()->toArray(),
+                'values' => $bebanOperasional->where('total', '>', 0)->pluck('total')->values()->toArray(),
             ],
         ];
 
         return view('laporan-laba-rugi.index', compact(
-            'pendapatan', 'beban',
-            'totalPendapatan', 'totalBeban', 'labaRugi',
+            'pendapatan', 'hpp', 'bebanOperasional',
+            'totalPendapatan', 'totalHpp', 'totalBebanOperasional', 'totalBeban',
+            'labaKotor', 'labaBersih',
             'bulan', 'tren', 'pieData'
         ));
     }

@@ -9,6 +9,7 @@ use App\Models\JurnalDetail;
 use App\Models\Coa;
 use App\Models\ShiftMaster;
 use App\Models\PayrollSetting;
+use App\Models\TangkiBbm;
 use App\Services\PayrollService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -26,7 +27,9 @@ class DashboardController extends Controller
 
         $penjualanHariIni = PenjualanBbm::whereDate('tanggal', $tanggalOperasional['tanggal'])->sum('total_penjualan');
         $pengeluaranHariIni = Pengeluaran::whereDate('tanggal', $tanggalOperasional['tanggal'])->sum('jumlah');
-        $labaHariIni = $penjualanHariIni - $pengeluaranHariIni;
+        $labaHariIni = $this->labaAkuntansi(
+            fn ($q) => $q->whereDate('tanggal', $tanggalOperasional['tanggal'])
+        );
         $petugasHadir = Absensis::whereDate('tanggal', $tanggalOperasional['tanggal'])
             ->where('status_hadir', 'hadir')->count();
 
@@ -35,7 +38,21 @@ class DashboardController extends Controller
             ->whereMonth('tanggal', now()->month)->sum('total_penjualan');
         $pengeluaranBulanIni = Pengeluaran::whereYear('tanggal', now()->year)
             ->whereMonth('tanggal', now()->month)->sum('jumlah');
-        $labaBulanIni = $penjualanBulanIni - $pengeluaranBulanIni;
+        $labaBulanIni = $this->labaAkuntansi(
+            fn ($q) => $q->whereYear('tanggal', now()->year)->whereMonth('tanggal', now()->month)
+        );
+
+        // ── Saldo Kas (akun 1101, berjalan sampai hari ini) ─────
+        $saldoKas = JurnalDetail::where('posisi', 'debit')
+            ->whereHas('coa', fn ($q) => $q->where('kode_akun', '1101'))
+            ->sum('jumlah')
+            - JurnalDetail::where('posisi', 'kredit')
+            ->whereHas('coa', fn ($q) => $q->where('kode_akun', '1101'))
+            ->sum('jumlah');
+
+        // ── Nilai Persediaan BBM (snapshot kondisi tangki saat ini) ─
+        $nilaiPersediaan = TangkiBbm::where('is_aktif', 1)->get()
+            ->sum(fn ($t) => $t->stok_liter * $t->harga_pokok_rata2);
 
         // ── Grafik 7 hari terakhir ────────────────────
         $grafik = PenjualanBbm::select(
@@ -78,9 +95,41 @@ class DashboardController extends Controller
         return view('dashboard', compact(
             'penjualanHariIni', 'pengeluaranHariIni', 'labaHariIni', 'petugasHadir', 'tanggalOperasional',
             'penjualanBulanIni', 'pengeluaranBulanIni', 'labaBulanIni',
+            'saldoKas', 'nilaiPersediaan',
             'grafikLabels', 'grafikData', 'perJenis', 'transaksiTerbaru',
             'reminderPayroll'
         ));
+    }
+
+    /**
+     * Laba akuntansi yang benar untuk rentang tanggal tertentu: Pendapatan
+     * (jurnal kredit akun kategori pendapatan) − HPP (jurnal debit akun 5104)
+     * − Beban lain (jurnal debit akun kategori beban selain 5104, termasuk
+     * beban gaji payroll 5103). Pola query sama seperti
+     * LaporanLabaRugiController supaya angkanya selalu match untuk periode
+     * yang sama - sengaja TIDAK lagi dihitung dari PenjualanBbm::sum()/
+     * Pengeluaran::sum() langsung (itu mengabaikan HPP & beban gaji payroll).
+     *
+     * @param  \Closure(\Illuminate\Database\Eloquent\Builder): void  $filterJurnal  filter tanggal pada query JurnalUmum
+     */
+    private function labaAkuntansi(\Closure $filterJurnal): int
+    {
+        $pendapatan = JurnalDetail::where('posisi', 'kredit')
+            ->whereHas('coa', fn ($q) => $q->where('kategori', 'pendapatan'))
+            ->whereHas('jurnal', $filterJurnal)
+            ->sum('jumlah');
+
+        $hpp = JurnalDetail::where('posisi', 'debit')
+            ->whereHas('coa', fn ($q) => $q->where('kode_akun', '5104'))
+            ->whereHas('jurnal', $filterJurnal)
+            ->sum('jumlah');
+
+        $bebanLain = JurnalDetail::where('posisi', 'debit')
+            ->whereHas('coa', fn ($q) => $q->where('kategori', 'beban')->where('kode_akun', '!=', '5104'))
+            ->whereHas('jurnal', $filterJurnal)
+            ->sum('jumlah');
+
+        return $pendapatan - $hpp - $bebanLain;
     }
 
     /**

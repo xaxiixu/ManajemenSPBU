@@ -471,6 +471,12 @@
                 <i class="bi bi-book-fill"></i> Buku Besar
             </a>
         </div>
+        <div class="nav-item">
+            <a href="{{ route('neraca.index') }}"
+                class="{{ request()->routeIs('neraca.*') ? 'active' : '' }}">
+                <i class="bi bi-clipboard2-data-fill"></i> Neraca
+            </a>
+        </div>
         @endif
 
         {{-- MANAJEMEN: Pengawas + Manager --}}
@@ -520,6 +526,12 @@
             <a href="{{ route('users.index') }}"
                 class="{{ request()->routeIs('users.*') ? 'active' : '' }}">
                 <i class="bi bi-people-fill"></i> Manajemen User
+            </a>
+        </div>
+        <div class="nav-item">
+            <a href="{{ route('saldo-awal.index') }}"
+                class="{{ request()->routeIs('saldo-awal.*') ? 'active' : '' }}">
+                <i class="bi bi-piggy-bank-fill"></i> Saldo Awal
             </a>
         </div>
         @endif

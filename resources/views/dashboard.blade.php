@@ -148,6 +148,26 @@
     </div>
 </div>
 
+{{-- Kondisi Keuangan Saat Ini --}}
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="card" style="border-left: 4px solid #0dcaf0;">
+            <div class="card-body">
+                <div class="text-muted small mb-1"><i class="bi bi-wallet2 me-1"></i>Saldo Kas</div>
+                <div class="fw-bold fs-5" style="color:#0dcaf0;">Rp {{ number_format($saldoKas) }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card" style="border-left: 4px solid #6f42c1;">
+            <div class="card-body">
+                <div class="text-muted small mb-1"><i class="bi bi-droplet-half me-1"></i>Nilai Persediaan BBM</div>
+                <div class="fw-bold fs-5" style="color:#6f42c1;">Rp {{ number_format($nilaiPersediaan) }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
 {{-- Transaksi Terbaru --}}
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">

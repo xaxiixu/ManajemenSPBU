@@ -73,19 +73,19 @@
         </div>
     </div>
     <div class="col-md-4">
-        <div class="card h-100" style="border-left: 4px solid {{ $labaRugi >= 0 ? '#27ae60' : '#e74c3c' }};">
+        <div class="card h-100" style="border-left: 4px solid {{ $labaBersih >= 0 ? '#27ae60' : '#e74c3c' }};">
             <div class="card-body">
                 <div class="d-flex align-items-center gap-3">
-                    <div style="width:50px;height:50px;background:{{ $labaRugi >= 0 ? '#d4edda' : '#f8d7da' }};border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                        <i class="bi bi-{{ $labaRugi >= 0 ? 'emoji-smile' : 'emoji-frown' }} {{ $labaRugi >= 0 ? 'text-success' : 'text-danger' }} fs-4"></i>
+                    <div style="width:50px;height:50px;background:{{ $labaBersih >= 0 ? '#d4edda' : '#f8d7da' }};border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                        <i class="bi bi-{{ $labaBersih >= 0 ? 'emoji-smile' : 'emoji-frown' }} {{ $labaBersih >= 0 ? 'text-success' : 'text-danger' }} fs-4"></i>
                     </div>
                     <div>
-                        <div class="text-muted small">{{ $labaRugi >= 0 ? 'Laba Bersih' : 'Rugi Bersih' }}</div>
-                        <div class="fw-bold fs-5 {{ $labaRugi >= 0 ? 'text-success' : 'text-danger' }}">
-                            Rp {{ number_format(abs($labaRugi)) }}
+                        <div class="text-muted small">{{ $labaBersih >= 0 ? 'Laba Bersih' : 'Rugi Bersih' }}</div>
+                        <div class="fw-bold fs-5 {{ $labaBersih >= 0 ? 'text-success' : 'text-danger' }}">
+                            Rp {{ number_format(abs($labaBersih)) }}
                         </div>
                         <div class="text-muted" style="font-size:0.75rem;">
-                            {{ $totalPendapatan > 0 ? number_format(($labaRugi / $totalPendapatan) * 100, 1) : 0 }}% margin
+                            {{ $totalPendapatan > 0 ? number_format(($labaBersih / $totalPendapatan) * 100, 1) : 0 }}% margin
                         </div>
                     </div>
                 </div>
@@ -164,54 +164,96 @@
 
         <hr class="my-4">
 
-        {{-- BEBAN --}}
-        <h6 class="fw-bold text-uppercase mb-3" style="letter-spacing:.05em; color:#e74c3c;">
-            <i class="bi bi-arrow-down-circle-fill me-2"></i>Beban Operasional
+        {{-- HPP --}}
+        <h6 class="fw-bold text-uppercase mb-3" style="letter-spacing:.05em; color:#e67e22;">
+            <i class="bi bi-box-seam-fill me-2"></i>Harga Pokok Penjualan (HPP)
         </h6>
         <table class="table table-borderless mb-0">
-            @forelse($beban->where('total', '>', 0) as $item)
+            @forelse($hpp->where('total', '>', 0) as $item)
             <tr>
                 <td class="ps-3" width="40%">{{ $item->nama_akun }}</td>
                 <td width="30%">
                     <div class="progress" style="height:6px; border-radius:3px;">
-                        <div class="progress-bar bg-danger" style="width:{{ $totalBeban > 0 ? ($item->total / $totalBeban) * 100 : 0 }}%"></div>
+                        <div class="progress-bar" style="background:#e67e22; width:{{ $totalHpp > 0 ? ($item->total / $totalHpp) * 100 : 0 }}%"></div>
                     </div>
                 </td>
                 <td class="text-end" width="15%">
-                    <small class="text-muted">{{ $totalBeban > 0 ? number_format(($item->total / $totalBeban) * 100, 1) : 0 }}%</small>
+                    <small class="text-muted">{{ $totalHpp > 0 ? number_format(($item->total / $totalHpp) * 100, 1) : 0 }}%</small>
                 </td>
                 <td class="text-end fw-semibold" width="15%">Rp {{ number_format($item->total) }}</td>
             </tr>
             @empty
-            <tr><td colspan="4" class="text-center text-muted ps-3">Belum ada beban periode ini</td></tr>
+            <tr><td colspan="4" class="text-center text-muted ps-3">Belum ada HPP periode ini</td></tr>
             @endforelse
             <tr class="border-top">
-                <td class="ps-3 fw-bold">Total Beban</td>
+                <td class="ps-3 fw-bold">Total HPP</td>
                 <td colspan="2"></td>
-                <td class="text-end fw-bold text-danger">Rp {{ number_format($totalBeban) }}</td>
+                <td class="text-end fw-bold" style="color:#e67e22;">(Rp {{ number_format($totalHpp) }})</td>
             </tr>
         </table>
 
         <hr class="my-4">
 
-        {{-- LABA/RUGI --}}
+        {{-- LABA KOTOR --}}
+        <div class="p-3 rounded-3 d-flex justify-content-between align-items-center mb-4"
+            style="background: {{ $labaKotor >= 0 ? '#e8f4fd' : '#f8d7da' }}; border: 1px solid {{ $labaKotor >= 0 ? '#3498db' : '#e74c3c' }};">
+            <div class="fw-bold" style="color: {{ $labaKotor >= 0 ? '#2980b9' : '#e74c3c' }};">
+                Laba Kotor <small class="text-muted fw-normal">(Total Pendapatan &minus; Total HPP)</small>
+            </div>
+            <div class="fw-bold fs-5" style="color: {{ $labaKotor >= 0 ? '#2980b9' : '#e74c3c' }};">
+                Rp {{ number_format($labaKotor) }}
+            </div>
+        </div>
+
+        {{-- BEBAN OPERASIONAL --}}
+        <h6 class="fw-bold text-uppercase mb-3" style="letter-spacing:.05em; color:#e74c3c;">
+            <i class="bi bi-arrow-down-circle-fill me-2"></i>Beban Operasional
+        </h6>
+        <table class="table table-borderless mb-0">
+            @forelse($bebanOperasional->where('total', '>', 0) as $item)
+            <tr>
+                <td class="ps-3" width="40%">{{ $item->nama_akun }}</td>
+                <td width="30%">
+                    <div class="progress" style="height:6px; border-radius:3px;">
+                        <div class="progress-bar bg-danger" style="width:{{ $totalBebanOperasional > 0 ? ($item->total / $totalBebanOperasional) * 100 : 0 }}%"></div>
+                    </div>
+                </td>
+                <td class="text-end" width="15%">
+                    <small class="text-muted">{{ $totalBebanOperasional > 0 ? number_format(($item->total / $totalBebanOperasional) * 100, 1) : 0 }}%</small>
+                </td>
+                <td class="text-end fw-semibold" width="15%">Rp {{ number_format($item->total) }}</td>
+            </tr>
+            @empty
+            <tr><td colspan="4" class="text-center text-muted ps-3">Belum ada beban operasional periode ini</td></tr>
+            @endforelse
+            <tr class="border-top">
+                <td class="ps-3 fw-bold">Total Beban Operasional</td>
+                <td colspan="2"></td>
+                <td class="text-end fw-bold text-danger">(Rp {{ number_format($totalBebanOperasional) }})</td>
+            </tr>
+        </table>
+
+        <hr class="my-4">
+
+        {{-- LABA/RUGI BERSIH --}}
         <div class="p-4 rounded-3 d-flex justify-content-between align-items-center"
-            style="background: {{ $labaRugi >= 0 ? '#d4edda' : '#f8d7da' }};">
+            style="background: {{ $labaBersih >= 0 ? '#d4edda' : '#f8d7da' }};">
             <div>
-                <div class="fw-bold fs-5 {{ $labaRugi >= 0 ? 'text-success' : 'text-danger' }}">
-                    {{ $labaRugi >= 0 ? '✅ Laba Bersih' : '❌ Rugi Bersih' }}
+                <div class="fw-bold fs-5 {{ $labaBersih >= 0 ? 'text-success' : 'text-danger' }}">
+                    {{ $labaBersih >= 0 ? '✅ Laba Bersih' : '❌ Rugi Bersih' }}
+                    <small class="text-muted fw-normal d-block d-md-inline">(Laba Kotor &minus; Total Beban Operasional)</small>
                 </div>
                 <small class="text-muted">
                     Periode {{ \Carbon\Carbon::parse($bulan)->translatedFormat('F Y') }}
                 </small>
             </div>
             <div class="text-end">
-                <div class="fw-bold fs-3 {{ $labaRugi >= 0 ? 'text-success' : 'text-danger' }}">
-                    Rp {{ number_format(abs($labaRugi)) }}
+                <div class="fw-bold fs-3 {{ $labaBersih >= 0 ? 'text-success' : 'text-danger' }}">
+                    Rp {{ number_format(abs($labaBersih)) }}
                 </div>
                 @if($totalPendapatan > 0)
                 <small class="text-muted">
-                    Margin {{ number_format(($labaRugi / $totalPendapatan) * 100, 1) }}%
+                    Margin {{ number_format(($labaBersih / $totalPendapatan) * 100, 1) }}%
                 </small>
                 @endif
             </div>
