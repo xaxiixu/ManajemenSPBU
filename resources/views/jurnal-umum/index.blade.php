@@ -112,129 +112,84 @@
 
 <div class="card">
     <div class="card-body p-0">
-        <table class="table table-hover mb-0">
-            <thead class="table-light">
-                <tr>
-                    <th style="width:2.5rem;"></th>
-                    <th>No. Jurnal</th>
-                    <th>Tanggal</th>
-                    <th>Keterangan</th>
-                    <th>Sumber</th>
-                    <th class="text-end">Total Debit (Rp)</th>
-                    <th class="text-end">Total Kredit (Rp)</th>
-                </tr>
-            </thead>
-            <tbody>
-                @forelse($data as $item)
-                <tr class="jurnal-row" role="button" data-bs-toggle="collapse" data-bs-target="#detail-{{ $item->id }}" aria-expanded="false" aria-controls="detail-{{ $item->id }}">
-                    <td class="text-center">
-                        <i class="bi bi-chevron-right jurnal-chevron text-muted"></i>
-                    </td>
-                    <td><code>{{ $item->nomor_jurnal }}</code></td>
-                    <td>{{ $item->tanggal->format('d/m/Y') }}</td>
-                    <td>{{ $item->keterangan }}</td>
-                    <td>
-                        @if($item->sumber == 'penjualan_bbm')
-                            <span class="badge bg-success">Penjualan BBM</span>
-                        @elseif($item->sumber == 'pengeluaran')
-                            <span class="badge bg-danger">Pengeluaran</span>
-                        @elseif($item->sumber == 'payroll')
-                            <span class="badge bg-primary">Gaji</span>
-                        @elseif($item->sumber == 'pembelian_bbm')
-                            <span class="badge bg-info text-dark">Pembelian BBM</span>
-                        @else
-                            <span class="badge bg-secondary">Manual</span>
-                        @endif
-                    </td>
-                    <td class="text-end">{{ number_format($item->total_debit) }}</td>
-                    <td class="text-end">{{ number_format($item->total_kredit) }}</td>
-                </tr>
-                <tr class="collapse" id="detail-{{ $item->id }}" data-jurnal-row-id="{{ $item->id }}">
-                    <td colspan="7" class="p-0 border-0">
-                        <div class="bg-light p-3">
-                            @if($item->sumber == 'payroll' && $item->referensi_id)
-                                <div class="mb-2">
-                                    <a href="{{ route('penggajian.show', $item->referensi_id) }}">
-                                        <i class="bi bi-cash-stack me-1"></i>Lihat Payroll Terkait
-                                    </a>
-                                </div>
+        <div class="table-responsive">
+            <table class="table table-bordered table-sm mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Tanggal</th>
+                        <th>Keterangan</th>
+                        <th>Ref</th>
+                        <th class="text-end">Debit (Rp)</th>
+                        <th class="text-end">Kredit (Rp)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($data as $item)
+                        @php $rowspan = $item->details->count() + 1; @endphp
+                        @foreach($item->details as $detail)
+                        <tr @if($loop->first) id="jurnal-{{ $item->id }}" @endif
+                            class="{{ $loop->parent->index % 2 == 0 ? 'jurnal-group-even' : 'jurnal-group-odd' }}">
+                            @if($loop->first)
+                            <td rowspan="{{ $rowspan }}">{{ $item->tanggal->format('d/m/Y') }}</td>
                             @endif
-                            <table class="table table-sm bg-white mb-0">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th>Kode Akun</th>
-                                        <th>Nama Akun</th>
-                                        <th>Keterangan</th>
-                                        <th class="text-end">Debit (Rp)</th>
-                                        <th class="text-end">Kredit (Rp)</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach($item->details as $detail)
-                                    <tr>
-                                        <td><code>{{ $detail->coa->kode_akun }}</code></td>
-                                        <td>{{ $detail->coa->nama_akun }}</td>
-                                        <td class="text-muted small">{{ $detail->keterangan }}</td>
-                                        <td class="text-end">
-                                            {{ $detail->posisi == 'debit' ? number_format($detail->jumlah) : '-' }}
-                                        </td>
-                                        <td class="text-end">
-                                            {{ $detail->posisi == 'kredit' ? number_format($detail->jumlah) : '-' }}
-                                        </td>
-                                    </tr>
-                                    @endforeach
-                                </tbody>
-                                <tfoot class="table-light">
-                                    <tr>
-                                        <th colspan="3" class="text-end">Total</th>
-                                        <th class="text-end">{{ number_format($item->total_debit) }}</th>
-                                        <th class="text-end">{{ number_format($item->total_kredit) }}</th>
-                                    </tr>
-                                </tfoot>
-                            </table>
-                        </div>
-                    </td>
-                </tr>
-                @empty
-                <tr>
-                    <td colspan="7" class="text-center py-4 text-muted">
-                        Belum ada jurnal untuk periode ini.
-                    </td>
-                </tr>
-                @endforelse
-            </tbody>
-        </table>
+                            <td>
+                                @if($loop->first)
+                                <div class="text-muted" style="font-size:0.75rem;">
+                                    <code>{{ $item->nomor_jurnal }}</code> · {{ $sumberOptions[$item->sumber] ?? 'Manual' }}
+                                    @if($item->sumber == 'payroll' && $item->referensi_id)
+                                        · <a href="{{ route('penggajian.show', $item->referensi_id) }}">Lihat Payroll</a>
+                                    @endif
+                                </div>
+                                @endif
+                                <div class="fw-semibold">{{ $detail->coa->nama_akun }}</div>
+                                <div class="fst-italic text-muted small">{{ $detail->keterangan }}</div>
+                            </td>
+                            <td class="text-muted small"><code>{{ $detail->coa->kode_akun }}</code></td>
+                            <td class="text-end">
+                                @if($detail->posisi == 'debit')
+                                    <span class="text-success">{{ number_format($detail->jumlah) }}</span>
+                                @else
+                                    <span class="text-muted">-</span>
+                                @endif
+                            </td>
+                            <td class="text-end">
+                                @if($detail->posisi == 'kredit')
+                                    <span class="text-danger">{{ number_format($detail->jumlah) }}</span>
+                                @else
+                                    <span class="text-muted">-</span>
+                                @endif
+                            </td>
+                        </tr>
+                        @endforeach
+                        <tr class="jurnal-group-end {{ $loop->index % 2 == 0 ? 'jurnal-group-even' : 'jurnal-group-odd' }}">
+                            <td colspan="2" class="text-end fw-semibold text-muted small">Total Jurnal</td>
+                            <td class="text-end fw-semibold text-success">{{ number_format($item->total_debit) }}</td>
+                            <td class="text-end fw-semibold text-danger">{{ number_format($item->total_kredit) }}</td>
+                        </tr>
+                    @empty
+                    <tr>
+                        <td colspan="5" class="text-center py-4 text-muted">
+                            Belum ada jurnal untuk periode ini.
+                        </td>
+                    </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 
+@if($data->hasPages())
+<div class="mt-3">
+    {{ $data->links() }}
+</div>
+@endif
+
 @push('styles')
 <style>
-    .jurnal-row[aria-expanded="true"] .jurnal-chevron { transform: rotate(90deg); }
-    .jurnal-chevron { transition: transform 0.15s ease; }
+    .jurnal-group-odd { background-color: #ffffff; }
+    .jurnal-group-even { background-color: #f8f9fa; }
+    .jurnal-group-end td { border-bottom: 3px solid #adb5bd; }
 </style>
-@endpush
-
-@push('scripts')
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    document.querySelectorAll('.jurnal-row').forEach(function (row) {
-        var targetId = row.getAttribute('data-bs-target');
-        var target = document.querySelector(targetId);
-        if (!target) return;
-        target.addEventListener('show.bs.collapse', function () { row.setAttribute('aria-expanded', 'true'); });
-        target.addEventListener('hide.bs.collapse', function () { row.setAttribute('aria-expanded', 'false'); });
-    });
-
-    if (window.location.hash.startsWith('#jurnal-')) {
-        var jurnalId = window.location.hash.replace('#jurnal-', '');
-        var detailRow = document.getElementById('detail-' + jurnalId);
-        if (detailRow) {
-            var collapse = bootstrap.Collapse.getOrCreateInstance(detailRow, { toggle: false });
-            collapse.show();
-            detailRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-    }
-});
-</script>
 @endpush
 @endsection

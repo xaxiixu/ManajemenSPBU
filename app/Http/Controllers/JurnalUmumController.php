@@ -25,7 +25,9 @@ class JurnalUmumController extends Controller
             ->whereBetween('tanggal', [$dari, $sampai])
             ->when($sumber, fn ($query) => $query->where('sumber', $sumber))
             ->latest('tanggal')
-            ->get();
+            ->orderByDesc('id')
+            ->paginate(20)
+            ->withQueryString();
 
         $totals = JurnalDetail::join('jurnal_umum', 'jurnal_umum.id', '=', 'jurnal_detail.jurnal_id')
             ->whereBetween('jurnal_umum.tanggal', [$dari, $sampai])

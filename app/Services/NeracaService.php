@@ -1,26 +1,23 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Services;
 
 use App\Models\Coa;
 use App\Models\JurnalDetail;
-use Illuminate\Http\Request;
 
-class NeracaController extends Controller
+class NeracaService
 {
-    public function index(Request $request)
+    // Neraca = snapshot per satu tanggal, bukan per periode - semua saldo
+    // dihitung dari awal (all-time) sampai tanggal terpilih, bukan
+    // dibatasi bulan/rentang seperti Laporan Laba Rugi.
+    public static function hitung(string $tanggal): array
     {
-        $tanggal = $request->tanggal ?? now()->format('Y-m-d');
-
-        // Neraca = snapshot per satu tanggal, bukan per periode - semua saldo
-        // dihitung dari awal (all-time) sampai tanggal terpilih, bukan
-        // dibatasi bulan/rentang seperti Laporan Laba Rugi.
         $aset = Coa::where('kategori', 'aset')
             ->where('is_aktif', 1)
             ->orderBy('kode_akun')
             ->get()
             ->map(function ($coa) use ($tanggal) {
-                $coa->saldo = $this->saldoAkun($coa->id, $tanggal, debitPositif: true);
+                $coa->saldo = self::saldoAkun($coa->id, $tanggal, debitPositif: true);
                 return $coa;
             });
 
@@ -29,7 +26,7 @@ class NeracaController extends Controller
             ->orderBy('kode_akun')
             ->get()
             ->map(function ($coa) use ($tanggal) {
-                $coa->saldo = $this->saldoAkun($coa->id, $tanggal, debitPositif: false);
+                $coa->saldo = self::saldoAkun($coa->id, $tanggal, debitPositif: false);
                 return $coa;
             });
 
@@ -38,7 +35,7 @@ class NeracaController extends Controller
             ->orderBy('kode_akun')
             ->get()
             ->map(function ($coa) use ($tanggal) {
-                $coa->saldo = $this->saldoAkun($coa->id, $tanggal, debitPositif: false);
+                $coa->saldo = self::saldoAkun($coa->id, $tanggal, debitPositif: false);
                 return $coa;
             });
 
@@ -66,16 +63,25 @@ class NeracaController extends Controller
         $totalPasiva = $totalKewajiban + $totalModal;
         $selisih     = $totalAset - $totalPasiva;
 
-        return view('neraca.index', compact(
-            'aset', 'kewajiban', 'modal',
-            'totalAset', 'totalKewajiban', 'totalModalAkun', 'labaBerjalan', 'totalModal', 'totalPasiva',
-            'selisih', 'tanggal'
-        ));
+        return [
+            'aset' => $aset,
+            'kewajiban' => $kewajiban,
+            'modal' => $modal,
+            'totalAset' => $totalAset,
+            'totalKewajiban' => $totalKewajiban,
+            'totalModalAkun' => $totalModalAkun,
+            'labaBerjalan' => $labaBerjalan,
+            'totalModal' => $totalModal,
+            'totalPasiva' => $totalPasiva,
+            'selisih' => $selisih,
+            'balance' => $selisih === 0,
+            'tanggal' => $tanggal,
+        ];
     }
 
     // Saldo akun dari awal s/d $tanggal (inklusif). Aset: debit - kredit.
     // Kewajiban & Modal: kredit - debit (posisi normal masing-masing).
-    private function saldoAkun(int $coaId, string $tanggal, bool $debitPositif): int
+    private static function saldoAkun(int $coaId, string $tanggal, bool $debitPositif): int
     {
         $debit = JurnalDetail::where('coa_id', $coaId)
             ->where('posisi', 'debit')

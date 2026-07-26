@@ -471,12 +471,6 @@
                 <i class="bi bi-book-fill"></i> Buku Besar
             </a>
         </div>
-        <div class="nav-item">
-            <a href="{{ route('neraca.index') }}"
-                class="{{ request()->routeIs('neraca.*') ? 'active' : '' }}">
-                <i class="bi bi-clipboard2-data-fill"></i> Neraca
-            </a>
-        </div>
         @endif
 
         {{-- MANAJEMEN: Pengawas + Manager --}}

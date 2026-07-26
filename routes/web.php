@@ -12,7 +12,6 @@ use App\Http\Controllers\MasterBbmController;
 use App\Http\Controllers\CoaController;
 use App\Http\Controllers\JurnalUmumController;
 use App\Http\Controllers\BukuBesarController;
-use App\Http\Controllers\NeracaController;
 use App\Http\Controllers\LaporanLabaRugiController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\PetugasController;
@@ -152,9 +151,6 @@ Route::middleware('auth')->group(function () {
         // Jurnal & Buku Besar read only
         Route::resource('jurnal-umum', JurnalUmumController::class)->only(['index']);
         Route::resource('buku-besar', BukuBesarController::class)->only(['index', 'show']);
-
-        // Neraca: read-only, snapshot saldo semua akun per tanggal
-        Route::get('/neraca', [NeracaController::class, 'index'])->name('neraca.index');
     });
 
     // ── Manager only: pengaturan & manajemen user ─────
