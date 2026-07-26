@@ -7,6 +7,7 @@ use App\Http\Controllers\PresensiController;
 use App\Http\Controllers\PengeluaranController;
 use App\Http\Controllers\PenjualanBbmController;
 use App\Http\Controllers\PembelianBbmController;
+use App\Http\Controllers\TangkiBbmController;
 use App\Http\Controllers\MasterBbmController;
 use App\Http\Controllers\CoaController;
 use App\Http\Controllers\JurnalUmumController;
@@ -109,6 +110,13 @@ Route::middleware('auth')->group(function () {
     Route::middleware('role:pengawas,manager')->group(function () {
         Route::get('/pembelian-bbm', [PembelianBbmController::class, 'index'])->name('pembelian-bbm.index');
         Route::get('/pembelian-bbm/{pembelianBbm}', [PembelianBbmController::class, 'show'])->name('pembelian-bbm.show');
+    });
+
+    // ── Lihat stok tangki: pengawas, manager (bukan petugas) ─
+    // Read-only: stok hanya berubah lewat proses pembelian/penjualan, bukan
+    // diedit manual, jadi tidak ada create/edit/delete untuk resource ini.
+    Route::middleware('role:pengawas,manager')->group(function () {
+        Route::get('/tangki-bbm', [TangkiBbmController::class, 'index'])->name('tangki-bbm.index');
     });
 
     // ── Pengawas + Manager: data petugas, jadwal shift, approval ─

@@ -82,6 +82,16 @@ class PenjualanBbm extends Model
 
             $tangki = TangkiBbm::where('id', $p->tangki_id)->lockForUpdate()->first();
 
+            // Cek stok cukup SEBELUM decrement - lockForUpdate() di atas
+            // memastikan stok_liter yang dibaca di sini sudah final (tidak ada
+            // pembelian/penjualan lain yang menyusul di tengah pengecekan),
+            // jadi aman dari race condition antar transaksi bersamaan.
+            if ($p->liter_terjual > $tangki->stok_liter) {
+                throw new \Exception(
+                    "Stok {$p->jenis_bbm} tidak mencukupi. Sisa stok: {$tangki->stok_liter} liter, permintaan: {$p->liter_terjual} liter."
+                );
+            }
+
             // Snapshot harga pokok rata-rata SAAT INI sebagai cost basis
             // transaksi ini (penjualan tidak mengubah harga_pokok_rata2 -
             // hanya pembelian yang mengubahnya - jadi urutan snapshot vs

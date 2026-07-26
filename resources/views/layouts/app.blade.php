@@ -420,6 +420,18 @@
             </a>
         </div>
         <div class="nav-item">
+            <a href="{{ route('pembelian-bbm.index') }}"
+                class="{{ request()->routeIs('pembelian-bbm.*') ? 'active' : '' }}">
+                <i class="bi bi-truck"></i> Pembelian BBM
+            </a>
+        </div>
+        <div class="nav-item">
+            <a href="{{ route('tangki-bbm.index') }}"
+                class="{{ request()->routeIs('tangki-bbm.*') ? 'active' : '' }}">
+                <i class="bi bi-droplet-half"></i> Stok Tangki
+            </a>
+        </div>
+        <div class="nav-item">
             <a href="{{ route('pengeluaran.index') }}"
                 class="{{ request()->routeIs('pengeluaran.*') ? 'active' : '' }}">
                 <i class="bi bi-cash-stack"></i> Pengeluaran Operasional

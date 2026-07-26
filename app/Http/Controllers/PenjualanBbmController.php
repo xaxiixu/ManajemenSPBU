@@ -108,26 +108,39 @@ class PenjualanBbmController extends Controller
         // Insert penjualan (memicu event saving() yang menyambung ke stok
         // tangki - lihat PenjualanBbm::boot()) + generate jurnal HARUS atomik:
         // kalau salah satu gagal, semuanya batal (termasuk pengurangan stok).
-        DB::transaction(function () use ($validated, $masterBbm, $absensi, $fotoAwal, $fotoAkhir) {
-            $penjualan = PenjualanBbm::create([
-                'tanggal'           => $validated['tanggal'],
-                'shift'             => $validated['shift'],
-                'absensis_id'       => $absensi->id,
-                'pulau'             => $validated['pulau'],
-                'jenis_bbm'         => $masterBbm->jenis_bbm,
-                'ron'               => $masterBbm->ron,
-                'coa_pendapatan_id' => $masterBbm->coa_pendapatan_id,
-                'meter_awal'        => $validated['meter_awal'],
-                'meter_akhir'       => $validated['meter_akhir'],
-                'harga_per_liter'   => $masterBbm->harga_per_liter,
-                'foto_meter_awal'   => $fotoAwal,
-                'foto_meter_akhir'  => $fotoAkhir,
-                'catatan'           => $validated['catatan'] ?? null,
-                'dicatat_oleh'      => auth()->id(),
-            ]);
+        //
+        // try-catch di sini menangkap exception dari model event (mis. meter
+        // akhir <= meter awal, atau stok tangki tidak cukup) supaya pesannya
+        // tampil balik ke form, bukan jadi halaman error 500 - DB::transaction
+        // sudah otomatis rollback duluan sebelum exception ini ditangkap, jadi
+        // foto yang sudah keburu di-upload di atas TIDAK ikut dihapus (di luar
+        // scope perbaikan ini, sama seperti path validasi gagal lain di atas).
+        try {
+            DB::transaction(function () use ($validated, $masterBbm, $absensi, $fotoAwal, $fotoAkhir) {
+                $penjualan = PenjualanBbm::create([
+                    'tanggal'           => $validated['tanggal'],
+                    'shift'             => $validated['shift'],
+                    'absensis_id'       => $absensi->id,
+                    'pulau'             => $validated['pulau'],
+                    'jenis_bbm'         => $masterBbm->jenis_bbm,
+                    'ron'               => $masterBbm->ron,
+                    'coa_pendapatan_id' => $masterBbm->coa_pendapatan_id,
+                    'meter_awal'        => $validated['meter_awal'],
+                    'meter_akhir'       => $validated['meter_akhir'],
+                    'harga_per_liter'   => $masterBbm->harga_per_liter,
+                    'foto_meter_awal'   => $fotoAwal,
+                    'foto_meter_akhir'  => $fotoAkhir,
+                    'catatan'           => $validated['catatan'] ?? null,
+                    'dicatat_oleh'      => auth()->id(),
+                ]);
 
-            JurnalService::dariPenjualan($penjualan);
-        });
+                JurnalService::dariPenjualan($penjualan);
+            });
+        } catch (\Exception $e) {
+            return back()
+                ->withErrors(['stok' => $e->getMessage()])
+                ->withInput();
+        }
 
         return redirect()->route('penjualan-bbm.index')
             ->with('success', 'Data penjualan berhasil disimpan.');
