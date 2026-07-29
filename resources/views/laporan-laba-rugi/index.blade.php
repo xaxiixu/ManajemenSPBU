@@ -4,6 +4,12 @@
 
 @section('content')
 
+@php
+    // Format Rupiah: negatif ditampilkan "-Rp 225.000" (bukan "Rp -225.000")
+    $fmtRp = fn($v) => ($v < 0 ? '-Rp ' . number_format(abs($v)) : 'Rp ' . number_format($v));
+    $periodeLabel = \Carbon\Carbon::parse($bulan)->locale('id')->translatedFormat('F Y');
+@endphp
+
 {{-- Filter --}}
 <div class="card mb-4 d-print-none">
     <div class="card-body">
@@ -26,16 +32,8 @@
     </div>
 </div>
 
-{{-- Header Print --}}
-<div class="d-none d-print-block text-center mb-4">
-    <h4 class="mb-0 fw-bold">SPBU Management System</h4>
-    <h5>Laporan Laba & Rugi</h5>
-    <p class="mb-0 text-muted">Periode: {{ \Carbon\Carbon::parse($bulan)->translatedFormat('F Y') }}</p>
-    <hr>
-</div>
-
 {{-- Summary Cards --}}
-<div class="row g-3 mb-4">
+<div class="row g-3 mb-4 d-print-none">
     <div class="col-md-4">
         <div class="card h-100" style="border-left: 4px solid #27ae60;">
             <div class="card-body">
@@ -47,7 +45,7 @@
                         <div class="text-muted small">Total Pendapatan</div>
                         <div class="fw-bold fs-5 text-success">Rp {{ number_format($totalPendapatan) }}</div>
                         <div class="text-muted" style="font-size:0.75rem;">
-                            {{ \Carbon\Carbon::parse($bulan)->translatedFormat('F Y') }}
+                            {{ $periodeLabel }}
                         </div>
                     </div>
                 </div>
@@ -65,7 +63,7 @@
                         <div class="text-muted small">Total Beban</div>
                         <div class="fw-bold fs-5 text-danger">Rp {{ number_format($totalBeban) }}</div>
                         <div class="text-muted" style="font-size:0.75rem;">
-                            {{ \Carbon\Carbon::parse($bulan)->translatedFormat('F Y') }}
+                            {{ $periodeLabel }}
                         </div>
                     </div>
                 </div>
@@ -130,135 +128,92 @@
     </div>
 </div>
 
-{{-- Tabel Rincian --}}
+{{-- Kop Laporan --}}
+<div class="laporan-kop">
+    <div class="kop-judul">Laporan Laba Rugi</div>
+    <div class="kop-periode">Periode {{ $periodeLabel }}</div>
+</div>
+
+{{-- Tabel Laporan --}}
 <div class="card">
     <div class="card-body">
+        <div class="table-responsive">
+            <table class="table-laporan-lr">
+                <colgroup>
+                    <col style="width:15%">
+                    <col style="width:55%">
+                    <col style="width:30%">
+                </colgroup>
+                <thead>
+                    <tr>
+                        <th>Kode Akun</th>
+                        <th>Nama Akun</th>
+                        <th class="nominal">Saldo</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{-- PENDAPATAN --}}
+                    <tr class="section-header"><td colspan="3">Pendapatan</td></tr>
+                    @forelse($pendapatan->where('total', '>', 0) as $item)
+                    <tr>
+                        <td>{{ $item->kode_akun }}</td>
+                        <td>{{ $item->nama_akun }}</td>
+                        <td class="nominal">Rp {{ number_format($item->total) }}</td>
+                    </tr>
+                    @empty
+                    <tr><td colspan="3" class="text-center text-muted">Belum ada pendapatan periode ini</td></tr>
+                    @endforelse
+                    <tr class="subtotal-row">
+                        <td colspan="2">Total Pendapatan</td>
+                        <td class="nominal">Rp {{ number_format($totalPendapatan) }}</td>
+                    </tr>
 
-        {{-- PENDAPATAN --}}
-        <h6 class="fw-bold text-uppercase mb-3" style="letter-spacing:.05em; color:#27ae60;">
-            <i class="bi bi-arrow-up-circle-fill me-2"></i>Pendapatan
-        </h6>
-        <table class="table table-borderless mb-0">
-            @forelse($pendapatan->where('total', '>', 0) as $item)
-            <tr>
-                <td class="ps-3" width="40%">{{ $item->nama_akun }}</td>
-                <td width="30%">
-                    <div class="progress" style="height:6px; border-radius:3px;">
-                        <div class="progress-bar bg-success" style="width:{{ $totalPendapatan > 0 ? ($item->total / $totalPendapatan) * 100 : 0 }}%"></div>
-                    </div>
-                </td>
-                <td class="text-end" width="15%">
-                    <small class="text-muted">{{ $totalPendapatan > 0 ? number_format(($item->total / $totalPendapatan) * 100, 1) : 0 }}%</small>
-                </td>
-                <td class="text-end fw-semibold" width="15%">Rp {{ number_format($item->total) }}</td>
-            </tr>
-            @empty
-            <tr><td colspan="4" class="text-center text-muted ps-3">Belum ada pendapatan periode ini</td></tr>
-            @endforelse
-            <tr class="border-top">
-                <td class="ps-3 fw-bold">Total Pendapatan</td>
-                <td colspan="2"></td>
-                <td class="text-end fw-bold text-success">Rp {{ number_format($totalPendapatan) }}</td>
-            </tr>
-        </table>
+                    {{-- HPP --}}
+                    <tr class="section-header"><td colspan="3">Harga Pokok Penjualan (HPP)</td></tr>
+                    @forelse($hpp->where('total', '>', 0) as $item)
+                    <tr>
+                        <td>{{ $item->kode_akun }}</td>
+                        <td>{{ $item->nama_akun }}</td>
+                        <td class="nominal">Rp {{ number_format($item->total) }}</td>
+                    </tr>
+                    @empty
+                    <tr><td colspan="3" class="text-center text-muted">Belum ada HPP periode ini</td></tr>
+                    @endforelse
+                    <tr class="subtotal-row">
+                        <td colspan="2">Total HPP</td>
+                        <td class="nominal">(Rp {{ number_format($totalHpp) }})</td>
+                    </tr>
 
-        <hr class="my-4">
+                    {{-- LABA KOTOR --}}
+                    <tr class="subtotal-row">
+                        <td colspan="2">Laba Kotor <span class="subtotal-note">(Total Pendapatan &minus; Total HPP)</span></td>
+                        <td class="nominal">{{ $fmtRp($labaKotor) }}</td>
+                    </tr>
 
-        {{-- HPP --}}
-        <h6 class="fw-bold text-uppercase mb-3" style="letter-spacing:.05em; color:#e67e22;">
-            <i class="bi bi-box-seam-fill me-2"></i>Harga Pokok Penjualan (HPP)
-        </h6>
-        <table class="table table-borderless mb-0">
-            @forelse($hpp->where('total', '>', 0) as $item)
-            <tr>
-                <td class="ps-3" width="40%">{{ $item->nama_akun }}</td>
-                <td width="30%">
-                    <div class="progress" style="height:6px; border-radius:3px;">
-                        <div class="progress-bar" style="background:#e67e22; width:{{ $totalHpp > 0 ? ($item->total / $totalHpp) * 100 : 0 }}%"></div>
-                    </div>
-                </td>
-                <td class="text-end" width="15%">
-                    <small class="text-muted">{{ $totalHpp > 0 ? number_format(($item->total / $totalHpp) * 100, 1) : 0 }}%</small>
-                </td>
-                <td class="text-end fw-semibold" width="15%">Rp {{ number_format($item->total) }}</td>
-            </tr>
-            @empty
-            <tr><td colspan="4" class="text-center text-muted ps-3">Belum ada HPP periode ini</td></tr>
-            @endforelse
-            <tr class="border-top">
-                <td class="ps-3 fw-bold">Total HPP</td>
-                <td colspan="2"></td>
-                <td class="text-end fw-bold" style="color:#e67e22;">(Rp {{ number_format($totalHpp) }})</td>
-            </tr>
-        </table>
+                    {{-- BEBAN OPERASIONAL --}}
+                    <tr class="section-header"><td colspan="3">Beban Operasional</td></tr>
+                    @forelse($bebanOperasional->where('total', '>', 0) as $item)
+                    <tr>
+                        <td>{{ $item->kode_akun }}</td>
+                        <td>{{ $item->nama_akun }}</td>
+                        <td class="nominal">Rp {{ number_format($item->total) }}</td>
+                    </tr>
+                    @empty
+                    <tr><td colspan="3" class="text-center text-muted">Belum ada beban operasional periode ini</td></tr>
+                    @endforelse
+                    <tr class="subtotal-row">
+                        <td colspan="2">Total Beban Operasional</td>
+                        <td class="nominal">(Rp {{ number_format($totalBebanOperasional) }})</td>
+                    </tr>
 
-        <hr class="my-4">
-
-        {{-- LABA KOTOR --}}
-        <div class="p-3 rounded-3 d-flex justify-content-between align-items-center mb-4"
-            style="background: {{ $labaKotor >= 0 ? '#e8f4fd' : '#f8d7da' }}; border: 1px solid {{ $labaKotor >= 0 ? '#3498db' : '#e74c3c' }};">
-            <div class="fw-bold" style="color: {{ $labaKotor >= 0 ? '#2980b9' : '#e74c3c' }};">
-                Laba Kotor <small class="text-muted fw-normal">(Total Pendapatan &minus; Total HPP)</small>
-            </div>
-            <div class="fw-bold fs-5" style="color: {{ $labaKotor >= 0 ? '#2980b9' : '#e74c3c' }};">
-                Rp {{ number_format($labaKotor) }}
-            </div>
+                    {{-- LABA/RUGI BERSIH --}}
+                    <tr class="laba-bersih-row">
+                        <td colspan="2">{{ $labaBersih >= 0 ? 'Laba Bersih' : 'Rugi Bersih' }} <span class="subtotal-note">(Laba Kotor &minus; Total Beban Operasional)</span></td>
+                        <td class="nominal">{{ $fmtRp($labaBersih) }}</td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
-
-        {{-- BEBAN OPERASIONAL --}}
-        <h6 class="fw-bold text-uppercase mb-3" style="letter-spacing:.05em; color:#e74c3c;">
-            <i class="bi bi-arrow-down-circle-fill me-2"></i>Beban Operasional
-        </h6>
-        <table class="table table-borderless mb-0">
-            @forelse($bebanOperasional->where('total', '>', 0) as $item)
-            <tr>
-                <td class="ps-3" width="40%">{{ $item->nama_akun }}</td>
-                <td width="30%">
-                    <div class="progress" style="height:6px; border-radius:3px;">
-                        <div class="progress-bar bg-danger" style="width:{{ $totalBebanOperasional > 0 ? ($item->total / $totalBebanOperasional) * 100 : 0 }}%"></div>
-                    </div>
-                </td>
-                <td class="text-end" width="15%">
-                    <small class="text-muted">{{ $totalBebanOperasional > 0 ? number_format(($item->total / $totalBebanOperasional) * 100, 1) : 0 }}%</small>
-                </td>
-                <td class="text-end fw-semibold" width="15%">Rp {{ number_format($item->total) }}</td>
-            </tr>
-            @empty
-            <tr><td colspan="4" class="text-center text-muted ps-3">Belum ada beban operasional periode ini</td></tr>
-            @endforelse
-            <tr class="border-top">
-                <td class="ps-3 fw-bold">Total Beban Operasional</td>
-                <td colspan="2"></td>
-                <td class="text-end fw-bold text-danger">(Rp {{ number_format($totalBebanOperasional) }})</td>
-            </tr>
-        </table>
-
-        <hr class="my-4">
-
-        {{-- LABA/RUGI BERSIH --}}
-        <div class="p-4 rounded-3 d-flex justify-content-between align-items-center"
-            style="background: {{ $labaBersih >= 0 ? '#d4edda' : '#f8d7da' }};">
-            <div>
-                <div class="fw-bold fs-5 {{ $labaBersih >= 0 ? 'text-success' : 'text-danger' }}">
-                    {{ $labaBersih >= 0 ? '✅ Laba Bersih' : '❌ Rugi Bersih' }}
-                    <small class="text-muted fw-normal d-block d-md-inline">(Laba Kotor &minus; Total Beban Operasional)</small>
-                </div>
-                <small class="text-muted">
-                    Periode {{ \Carbon\Carbon::parse($bulan)->translatedFormat('F Y') }}
-                </small>
-            </div>
-            <div class="text-end">
-                <div class="fw-bold fs-3 {{ $labaBersih >= 0 ? 'text-success' : 'text-danger' }}">
-                    Rp {{ number_format(abs($labaBersih)) }}
-                </div>
-                @if($totalPendapatan > 0)
-                <small class="text-muted">
-                    Margin {{ number_format(($labaBersih / $totalPendapatan) * 100, 1) }}%
-                </small>
-                @endif
-            </div>
-        </div>
-
     </div>
 </div>
 
@@ -266,10 +221,126 @@
 
 @push('styles')
 <style>
+/* ── Kop Laporan ───────────────────────────────────── */
+.laporan-kop {
+    border: 2px solid var(--spbu-red);
+    background: var(--spbu-red-lt);
+    border-radius: 10px;
+    padding: 1.1rem 1rem;
+    text-align: center;
+    margin-bottom: 1.5rem;
+}
+
+.laporan-kop .kop-perusahaan {
+    font-size: 1.05rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: #1a1a2e;
+    margin-bottom: .15rem;
+}
+
+.laporan-kop .kop-judul {
+    font-size: 1.3rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--spbu-red-dk);
+    margin-bottom: .2rem;
+}
+
+.laporan-kop .kop-periode {
+    font-size: .9rem;
+    font-weight: 600;
+    color: #555;
+}
+
+/* ── Tabel Laporan Laba Rugi ──────────────────────────── */
+.table-laporan-lr {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .875rem;
+}
+
+.table-laporan-lr th,
+.table-laporan-lr td {
+    border: 1px solid #d7d7d7;
+    padding: .65rem .9rem;
+    vertical-align: middle;
+}
+
+.table-laporan-lr thead th {
+    background: #1a1a2e;
+    color: #fff;
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: .78rem;
+    letter-spacing: .04em;
+    text-align: left;
+}
+
+.table-laporan-lr td.nominal,
+.table-laporan-lr th.nominal {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+}
+
+.table-laporan-lr tbody tr.section-header td {
+    background: var(--spbu-red-lt);
+    color: var(--spbu-red-dk);
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: .8rem;
+    letter-spacing: .04em;
+}
+
+.table-laporan-lr tbody tr.subtotal-row td {
+    background: #f7ebea;
+    color: #222;
+    font-weight: 700;
+}
+
+.table-laporan-lr .subtotal-note {
+    font-weight: 400;
+    color: #777;
+    font-size: .78rem;
+}
+
+.table-laporan-lr tbody tr.laba-bersih-row td {
+    background: var(--spbu-red);
+    color: #fff;
+    font-weight: 800;
+    font-size: 1.05rem;
+    border-top: 3px solid var(--spbu-red-dk);
+    padding-top: .9rem;
+    padding-bottom: .9rem;
+}
+
+.table-laporan-lr tbody tr.laba-bersih-row .subtotal-note {
+    color: rgba(255,255,255,.75);
+}
+
+@media (max-width: 575.98px) {
+    .table-laporan-lr { font-size: .8rem; }
+    .table-laporan-lr th, .table-laporan-lr td { padding: .5rem .6rem; }
+}
+
+/* ── Print ─────────────────────────────────────────── */
 @media print {
     #sidebar, #topbar, .d-print-none { display: none !important; }
     #main-content { margin: 0 !important; padding: 1rem !important; }
     .card { box-shadow: none !important; border: 1px solid #ddd !important; }
+
+    * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+    }
+
+    .laporan-kop { break-inside: avoid; }
+    .table-laporan-lr thead { display: table-header-group; }
+    .table-laporan-lr tr { break-inside: avoid; }
 }
 </style>
 @endpush
