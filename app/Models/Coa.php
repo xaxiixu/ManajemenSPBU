@@ -13,7 +13,7 @@ class Coa extends Model
 
     protected $fillable = [
         'kode_akun', 'parent_id', 'nama_akun', 'kategori',
-        'posisi_normal', 'deskripsi', 'is_aktif',
+        'posisi_normal', 'deskripsi', 'is_aktif', 'saldo_awal',
     ];
 
     public function parent()

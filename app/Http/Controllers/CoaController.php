@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Coa;
+use App\Services\JurnalService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -49,7 +51,7 @@ class CoaController extends Controller
     {
         $this->authorizeManager();
 
-        $validated = $this->validateForm($request);
+        $validated = $this->validateForm($request, ['saldo_awal' => 'nullable|numeric|min:0']);
         $parent    = $this->resolveParent($validated['parent_id'] ?? null);
         $kategori  = $parent ? $parent->kategori : $validated['kategori'];
         $kodeAkun  = $this->buildKodeAkun($kategori, $validated['kode_suffix'], $parent);
@@ -60,15 +62,30 @@ class CoaController extends Controller
                 ->withInput();
         }
 
-        Coa::create([
-            'kode_akun'     => $kodeAkun,
-            'parent_id'     => $parent?->id,
-            'nama_akun'     => $validated['nama_akun'],
-            'kategori'      => $kategori,
-            'posisi_normal' => self::KATEGORI_INFO[$kategori]['posisi'],
-            'deskripsi'     => $validated['deskripsi'] ?? null,
-            'is_aktif'      => 1,
-        ]);
+        // Saldo Awal hanya berlaku untuk akun neraca (aset/kewajiban/modal) -
+        // form hanya mengirim field ini untuk kategori tsb (lihat JS di
+        // coa/create.blade.php), tapi kita jaga juga di sini kalau-kalau
+        // request dikirim manual di luar form.
+        $saldoAwal = in_array($kategori, ['aset', 'kewajiban', 'modal'], true)
+            ? (float) ($validated['saldo_awal'] ?? 0)
+            : 0.0;
+
+        DB::transaction(function () use ($validated, $parent, $kategori, $kodeAkun, $saldoAwal) {
+            $coa = Coa::create([
+                'kode_akun'     => $kodeAkun,
+                'parent_id'     => $parent?->id,
+                'nama_akun'     => $validated['nama_akun'],
+                'kategori'      => $kategori,
+                'posisi_normal' => self::KATEGORI_INFO[$kategori]['posisi'],
+                'deskripsi'     => $validated['deskripsi'] ?? null,
+                'saldo_awal'    => $saldoAwal > 0 ? $saldoAwal : null,
+                'is_aktif'      => 1,
+            ]);
+
+            if ($saldoAwal > 0) {
+                JurnalService::dariSaldoAwalAkun($coa);
+            }
+        });
 
         return redirect()->route('coa.index')
             ->with('success', 'Akun berhasil ditambahkan.');

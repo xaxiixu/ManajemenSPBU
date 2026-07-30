@@ -37,11 +37,14 @@ $canEdit = auth()->user()->role === 'manager';
         <table class="table table-hover mb-0" style="table-layout: fixed;">
             <thead class="table-light">
                 <tr>
-                    <th style="width:15%;">Kode Akun</th>
-                    <th style="width:25%;">Nama Akun</th>
-                    <th style="width:15%;">Posisi Normal</th>
-                    <th style="width:30%;">Deskripsi</th>
-                    <th style="width:15%;">Aksi</th>
+                    <th style="width:13%;">Kode Akun</th>
+                    <th style="width:20%;">Nama Akun</th>
+                    <th style="width:12%;">Posisi Normal</th>
+                    <th style="width:23%;">Deskripsi</th>
+                    <th style="width:15%;" title="Saldo saat akun dibuat — untuk saldo terkini, lihat Buku Besar">
+                        Saldo Awal <i class="bi bi-info-circle text-muted small"></i>
+                    </th>
+                    <th style="width:17%;">Aksi</th>
                 </tr>
             </thead>
             <tbody>
@@ -66,6 +69,7 @@ $canEdit = auth()->user()->role === 'manager';
                         </span>
                     </td>
                     <td class="text-muted small">{{ $item->deskripsi ?? '-' }}</td>
+                    <td class="text-muted small">{{ $item->saldo_awal !== null ? 'Rp '.number_format($item->saldo_awal, 0, ',', '.') : '-' }}</td>
                     <td>
                         @if($canEdit)
                         <a href="{{ route('coa.edit', $item) }}" class="btn btn-sm btn-outline-primary">
@@ -94,6 +98,7 @@ $canEdit = auth()->user()->role === 'manager';
                         </span>
                     </td>
                     <td class="text-muted small">{{ $child->deskripsi ?? '-' }}</td>
+                    <td class="text-muted small">{{ $child->saldo_awal !== null ? 'Rp '.number_format($child->saldo_awal, 0, ',', '.') : '-' }}</td>
                     <td>
                         @if($canEdit)
                         <a href="{{ route('coa.edit', $child) }}" class="btn btn-sm btn-outline-primary">

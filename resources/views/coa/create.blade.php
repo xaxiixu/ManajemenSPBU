@@ -72,6 +72,19 @@
                         <label class="form-label fw-semibold">Deskripsi <span class="text-muted fw-normal">(opsional)</span></label>
                         <input type="text" name="deskripsi" class="form-control" value="{{ old('deskripsi') }}">
                     </div>
+                    <div class="mb-4" id="saldoAwalGroup" style="display:none;">
+                        <label class="form-label fw-semibold">Saldo Awal (Rp) <span class="text-muted fw-normal">(opsional)</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text">Rp</span>
+                            <input type="text" id="saldoAwalDisplay" class="form-control"
+                                placeholder="cth: 5.000.000"
+                                value="{{ old('saldo_awal') ? number_format(old('saldo_awal'), 0, ',', '.') : '' }}"
+                                autocomplete="off">
+                            <input type="hidden" name="saldo_awal" id="saldoAwalValue" value="{{ old('saldo_awal', 0) }}">
+                        </div>
+                        <small class="text-muted">Saldo saat akun ini dibuat (statis, historis). Kosongkan/0 kalau akun mulai dari saldo 0 — akan otomatis membuat 1 jurnal penyeimbang ke akun Modal Pemilik (3101).</small>
+                        @error('saldo_awal')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
+                    </div>
                     <div class="d-flex gap-2">
                         <a href="{{ route('coa.index') }}" class="btn btn-secondary">Batal</a>
                         <button type="submit" class="btn btn-danger"><i class="bi bi-save me-1"></i>Simpan</button>
@@ -127,6 +140,36 @@ document.addEventListener('DOMContentLoaded', function () {
     const previewNama     = document.getElementById('previewNama');
     const previewKategori = document.getElementById('previewKategori');
     const previewPosisi   = document.getElementById('previewPosisi');
+
+    // Saldo Awal hanya relevan untuk akun neraca (aset/kewajiban/modal) -
+    // akun pendapatan/beban tidak punya "saldo" statis untuk dicatat.
+    const KATEGORI_BOLEH_SALDO_AWAL = ['aset', 'kewajiban', 'modal'];
+    const saldoAwalGroupEl   = document.getElementById('saldoAwalGroup');
+    const saldoAwalDisplayEl = document.getElementById('saldoAwalDisplay');
+    const saldoAwalValueEl   = document.getElementById('saldoAwalValue');
+
+    function updateSaldoAwalVisibility() {
+        const parent = selectedParent();
+        const kategoriEfektif = parent ? parent.kategori : kategoriEl.value;
+
+        if (KATEGORI_BOLEH_SALDO_AWAL.includes(kategoriEfektif)) {
+            saldoAwalGroupEl.style.display = '';
+        } else {
+            saldoAwalGroupEl.style.display = 'none';
+            saldoAwalDisplayEl.value = '';
+            saldoAwalValueEl.value = 0;
+        }
+    }
+
+    function pasangFormatRupiah(display, hidden) {
+        display.addEventListener('input', function () {
+            let raw = this.value.replace(/\D/g, '');
+            this.value = raw.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            hidden.value = raw || 0;
+        });
+    }
+
+    pasangFormatRupiah(saldoAwalDisplayEl, saldoAwalValueEl);
 
     function selectedParent() {
         const opt = parentEl.options[parentEl.selectedIndex];
@@ -203,11 +246,13 @@ document.addEventListener('DOMContentLoaded', function () {
         applyState();
         updateSuffixHint();
         updatePreview();
+        updateSaldoAwalVisibility();
     });
 
     kategoriEl.addEventListener('change', function () {
         applyState();
         updatePreview();
+        updateSaldoAwalVisibility();
     });
 
     kodeSuffixEl.addEventListener('input', function () {
@@ -221,6 +266,7 @@ document.addEventListener('DOMContentLoaded', function () {
     applyState();
     updateSuffixHint();
     updatePreview();
+    updateSaldoAwalVisibility();
 });
 </script>
 @endpush

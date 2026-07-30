@@ -282,6 +282,78 @@ class JurnalService
         return $jurnal;
     }
 
+    // Dipanggil saat akun COA baru (kategori aset/kewajiban/modal) diberi Saldo
+    // Awal statis lewat form Tambah Akun COA (lihat CoaController::store()).
+    // BEDA dari dariSaldoAwal() (Kas+Persediaan, sumber 'saldo_awal', one-time
+    // lock) - method ini pakai sumber 'saldo_awal_akun' SUPAYA proteksi
+    // one-time-lock milik halaman Saldo Awal lama tidak ikut memblokir fitur
+    // ini; boleh dipakai berkali-kali untuk akun berbeda-beda. Tanggal jurnal
+    // selalu now() (tidak ada input tanggal manual, sesuai keputusan).
+    public static function dariSaldoAwalAkun(Coa $akunBaru): JurnalUmum
+    {
+        $akunModal = Coa::where('kode_akun', '3101')->value('id');
+
+        if (! $akunModal) {
+            throw new \RuntimeException(
+                'Akun COA 3101 Modal Pemilik tidak ditemukan. Saldo awal akun tidak bisa dicatat.'
+            );
+        }
+
+        $jumlah = $akunBaru->saldo_awal;
+        $tanggal = now();
+
+        $jurnal = JurnalUmum::create([
+            'nomor_jurnal' => JurnalUmum::generateNomor($tanggal),
+            'tanggal' => $tanggal,
+            'keterangan' => 'Saldo awal akun '.$akunBaru->nama_akun.' ('.$akunBaru->kode_akun.')',
+            'sumber' => 'saldo_awal_akun',
+            'referensi_id' => $akunBaru->id,
+            'dibuat_oleh' => auth()->id(),
+        ]);
+
+        if ($akunBaru->kategori === 'aset') {
+            // Aset bertambah: debit akun baru, kredit Modal Pemilik
+            JurnalDetail::create([
+                'jurnal_id' => $jurnal->id,
+                'coa_id' => $akunBaru->id,
+                'posisi' => 'debit',
+                'jumlah' => $jumlah,
+                'keterangan' => 'Saldo awal '.$akunBaru->nama_akun,
+            ]);
+
+            JurnalDetail::create([
+                'jurnal_id' => $jurnal->id,
+                'coa_id' => $akunModal,
+                'posisi' => 'kredit',
+                'jumlah' => $jumlah,
+                'keterangan' => 'Modal awal dari saldo akun '.$akunBaru->nama_akun,
+            ]);
+        } else {
+            // kewajiban: kredit akun baru, debit Modal Pemilik.
+            // modal: SECARA TEKNIS diperlakukan sama (kredit akun baru, debit
+            // Modal Pemilik) - kasus akun modal baru yang punya saldo awal
+            // sendiri (mis. setoran modal tambahan) jarang dipakai, tapi tetap
+            // ditangani di sini supaya form tidak error kalau kategori ini dipilih.
+            JurnalDetail::create([
+                'jurnal_id' => $jurnal->id,
+                'coa_id' => $akunBaru->id,
+                'posisi' => 'kredit',
+                'jumlah' => $jumlah,
+                'keterangan' => 'Saldo awal '.$akunBaru->nama_akun,
+            ]);
+
+            JurnalDetail::create([
+                'jurnal_id' => $jurnal->id,
+                'coa_id' => $akunModal,
+                'posisi' => 'debit',
+                'jumlah' => $jumlah,
+                'keterangan' => 'Modal awal dari saldo akun '.$akunBaru->nama_akun,
+            ]);
+        }
+
+        return $jurnal;
+    }
+
     // Dipanggil saat sebuah payroll run dikirim (draft → dikirim).
     // Membuat SATU jurnal gabungan untuk seluruh petugas dalam run (bukan per
     // petugas), memakai TOTAL gaji bersih (sudah termasuk penyesuaian manual &

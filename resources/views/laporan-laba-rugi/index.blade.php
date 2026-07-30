@@ -130,6 +130,7 @@
 
 {{-- Kop Laporan --}}
 <div class="laporan-kop">
+    <div class="kop-perusahaan">PT. Berkah Membangun Usaha</div>
     <div class="kop-judul">Laporan Laba Rugi</div>
     <div class="kop-periode">Periode {{ $periodeLabel }}</div>
 </div>
