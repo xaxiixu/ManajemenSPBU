@@ -63,14 +63,11 @@
 {{-- Saldo --}}
 @php
     $posisiNormal = $selectedCoa->posisi_normal;
-    $saldo = $posisiNormal == 'debit'
-        ? $totalDebit - $totalKredit
-        : $totalKredit - $totalDebit;
 @endphp
 <div class="card mb-3" style="background:#1a1a2e; color:#fff;">
     <div class="card-body py-3 d-flex justify-content-between align-items-center">
         <span>Saldo Akhir ({{ ucfirst($posisiNormal) }})</span>
-        <strong class="fs-5">Rp {{ number_format($saldo) }}</strong>
+        <strong class="fs-5">Rp {{ number_format($saldoAkhir) }}</strong>
     </div>
 </div>
 
@@ -89,7 +86,15 @@
                 </tr>
             </thead>
             <tbody>
-                @php $saldoBerjalan = 0; @endphp
+                <tr class="table-light">
+                    <td>{{ \Carbon\Carbon::parse($bulan . '-01')->format('d/m/Y') }}</td>
+                    <td>-</td>
+                    <td class="fw-semibold">Saldo Awal</td>
+                    <td class="text-end">-</td>
+                    <td class="text-end">-</td>
+                    <td class="text-end fw-semibold">Rp {{ number_format($saldoAwal) }}</td>
+                </tr>
+                @php $saldoBerjalan = $saldoAwal; @endphp
                 @forelse($data as $item)
                 @php
                     if ($posisiNormal == 'debit') {
@@ -124,7 +129,7 @@
                     <th colspan="3" class="text-end">Total</th>
                     <th class="text-end">Rp {{ number_format($totalDebit) }}</th>
                     <th class="text-end">Rp {{ number_format($totalKredit) }}</th>
-                    <th class="text-end">Rp {{ number_format($saldo) }}</th>
+                    <th class="text-end">Rp {{ number_format($saldoAkhir) }}</th>
                 </tr>
             </tfoot>
             @endif
