@@ -143,6 +143,7 @@ Route::middleware('auth')->group(function () {
     Route::middleware('role:manager')->group(function () {
         // COA full (manager & IT bisa tambah/edit/hapus)
         Route::resource('coa', CoaController::class);
+        Route::patch('/coa/{coa}/toggle-aktif', [CoaController::class, 'toggleAktif'])->name('coa.toggle-aktif');
 
         // Master BBM full (manager & IT bisa tambah/edit/hapus) - tanpa show,
         // tidak ada halaman detail terpisah untuk master data ini.

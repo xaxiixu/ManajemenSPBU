@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Coa;
+use App\Models\JurnalDetail;
 use App\Services\JurnalService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -36,7 +37,7 @@ class CoaController extends Controller
     {
         $this->authorizeManager();
 
-        $parents = Coa::whereNull('parent_id')->orderBy('kode_akun')->get();
+        $parents = Coa::whereNull('parent_id')->where('is_aktif', 1)->orderBy('kode_akun')->get();
 
         // Suffix child yang sudah terpakai per parent_id, dipakai view untuk hint "suffix berikutnya"
         $childrenByParent = Coa::whereNotNull('parent_id')
@@ -103,6 +104,7 @@ class CoaController extends Controller
 
         $parents = Coa::whereNull('parent_id')
             ->where('id', '!=', $coa->id)
+            ->where('is_aktif', 1)
             ->orderBy('kode_akun')
             ->get();
 
@@ -143,9 +145,34 @@ class CoaController extends Controller
     public function destroy(Coa $coa)
     {
         $this->authorizeManager();
+
+        // Akun (atau salah satu anaknya) yang sudah punya riwayat jurnal tidak
+        // boleh dihapus - FK jurnal_detail.coa_id di-restrict, jadi delete()
+        // akan gagal dengan raw SQL error kalau ini tidak dicek dulu.
+        $akunIds = $coa->children()->pluck('id')->push($coa->id);
+
+        if (JurnalDetail::whereIn('coa_id', $akunIds)->exists()) {
+            return redirect()->route('coa.index')->with('error',
+                "Akun {$coa->kode_akun} {$coa->nama_akun} tidak bisa dihapus karena sudah memiliki riwayat transaksi. ".
+                'Nonaktifkan akun ini saja jika tidak ingin dipakai lagi.'
+            );
+        }
+
         $coa->delete();
         return redirect()->route('coa.index')
             ->with('success', 'Akun berhasil dihapus.');
+    }
+
+    public function toggleAktif(Coa $coa)
+    {
+        $this->authorizeManager();
+
+        $coa->update(['is_aktif' => ! $coa->is_aktif]);
+
+        $status = $coa->is_aktif ? 'diaktifkan' : 'dinonaktifkan';
+
+        return redirect()->route('coa.index')
+            ->with('success', "Akun {$coa->kode_akun} {$coa->nama_akun} berhasil {$status}.");
     }
 
     private function validateForm(Request $request, array $extraRules = []): array

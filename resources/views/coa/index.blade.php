@@ -37,14 +37,14 @@ $canEdit = auth()->user()->role === 'manager';
         <table class="table table-hover mb-0" style="table-layout: fixed;">
             <thead class="table-light">
                 <tr>
-                    <th style="width:13%;">Kode Akun</th>
-                    <th style="width:20%;">Nama Akun</th>
-                    <th style="width:12%;">Posisi Normal</th>
-                    <th style="width:23%;">Deskripsi</th>
-                    <th style="width:15%;" title="Saldo saat akun dibuat — untuk saldo terkini, lihat Buku Besar">
+                    <th style="width:12%;">Kode Akun</th>
+                    <th style="width:19%;">Nama Akun</th>
+                    <th style="width:11%;">Posisi Normal</th>
+                    <th style="width:19%;">Deskripsi</th>
+                    <th style="width:14%;" title="Saldo saat akun dibuat — untuk saldo terkini, lihat Buku Besar">
                         Saldo Awal <i class="bi bi-info-circle text-muted small"></i>
                     </th>
-                    <th style="width:17%;">Aksi</th>
+                    <th style="width:25%;">Aksi</th>
                 </tr>
             </thead>
             <tbody>
@@ -62,7 +62,12 @@ $canEdit = auth()->user()->role === 'manager';
                         @endif
                         <code>{{ $item->kode_akun }}</code>
                     </td>
-                    <td class="fw-semibold">{{ $item->nama_akun }}</td>
+                    <td class="fw-semibold">
+                        {{ $item->nama_akun }}
+                        @unless($item->is_aktif)
+                        <span class="badge bg-secondary ms-1">Nonaktif</span>
+                        @endunless
+                    </td>
                     <td>
                         <span class="badge bg-{{ $item->posisi_normal == 'debit' ? 'primary' : 'success' }}">
                             {{ ucfirst($item->posisi_normal) }}
@@ -75,6 +80,14 @@ $canEdit = auth()->user()->role === 'manager';
                         <a href="{{ route('coa.edit', $item) }}" class="btn btn-sm btn-outline-primary">
                             <i class="bi bi-pencil"></i>
                         </a>
+                        <form action="{{ route('coa.toggle-aktif', $item) }}" method="POST" class="d-inline"
+                            onsubmit="return confirm('{{ $item->is_aktif ? 'Nonaktifkan' : 'Aktifkan' }} akun {{ $item->nama_akun }}?');">
+                            @csrf @method('PATCH')
+                            <button type="submit" class="btn btn-sm btn-outline-{{ $item->is_aktif ? 'warning' : 'success' }}"
+                                title="{{ $item->is_aktif ? 'Nonaktifkan akun' : 'Aktifkan akun' }}">
+                                <i class="bi bi-{{ $item->is_aktif ? 'slash-circle' : 'check-circle' }}"></i>
+                            </button>
+                        </form>
                         <button type="button" class="btn btn-sm btn-outline-danger"
                             onclick="confirmDelete({{ $item->id }}, '{{ $item->nama_akun }}')">
                             <i class="bi bi-trash"></i>
@@ -91,7 +104,12 @@ $canEdit = auth()->user()->role === 'manager';
                         <i class="bi bi-arrow-return-right text-muted me-1"></i>
                         <code>{{ $child->kode_akun }}</code>
                     </td>
-                    <td class="ps-4">{{ $child->nama_akun }}</td>
+                    <td class="ps-4">
+                        {{ $child->nama_akun }}
+                        @unless($child->is_aktif)
+                        <span class="badge bg-secondary ms-1">Nonaktif</span>
+                        @endunless
+                    </td>
                     <td>
                         <span class="badge bg-{{ $child->posisi_normal == 'debit' ? 'primary' : 'success' }}">
                             {{ ucfirst($child->posisi_normal) }}
@@ -104,6 +122,14 @@ $canEdit = auth()->user()->role === 'manager';
                         <a href="{{ route('coa.edit', $child) }}" class="btn btn-sm btn-outline-primary">
                             <i class="bi bi-pencil"></i>
                         </a>
+                        <form action="{{ route('coa.toggle-aktif', $child) }}" method="POST" class="d-inline"
+                            onsubmit="return confirm('{{ $child->is_aktif ? 'Nonaktifkan' : 'Aktifkan' }} akun {{ $child->nama_akun }}?');">
+                            @csrf @method('PATCH')
+                            <button type="submit" class="btn btn-sm btn-outline-{{ $child->is_aktif ? 'warning' : 'success' }}"
+                                title="{{ $child->is_aktif ? 'Nonaktifkan akun' : 'Aktifkan akun' }}">
+                                <i class="bi bi-{{ $child->is_aktif ? 'slash-circle' : 'check-circle' }}"></i>
+                            </button>
+                        </form>
                         <button type="button" class="btn btn-sm btn-outline-danger"
                             onclick="confirmDelete({{ $child->id }}, '{{ $child->nama_akun }}')">
                             <i class="bi bi-trash"></i>
