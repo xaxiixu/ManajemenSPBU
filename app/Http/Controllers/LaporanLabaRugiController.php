@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\Coa;
 use App\Models\JurnalDetail;
 use Illuminate\Http\Request;
-use Carbon\Carbon;
 
 class LaporanLabaRugiController extends Controller
 {
@@ -65,68 +64,18 @@ class LaporanLabaRugiController extends Controller
         $totalPendapatan       = $pendapatan->sum('total');
         $totalHpp              = $hpp->sum('total');
         $totalBebanOperasional = $bebanOperasional->sum('total');
-        $totalBeban            = $totalHpp + $totalBebanOperasional;
 
         // Laba Kotor = Pendapatan - HPP, lalu Laba Bersih = Laba Kotor -
-        // Beban Operasional. Secara nominal identik dengan totalPendapatan -
-        // totalBeban lama (totalBeban = totalHpp + totalBebanOperasional),
-        // cuma dipecah jadi 2 langkah supaya strukturnya proper income
-        // statement (ada baris Laba Kotor di antaranya).
+        // Beban Operasional. Dipecah jadi 2 langkah supaya strukturnya
+        // proper income statement (ada baris Laba Kotor di antaranya).
         $labaKotor  = $totalPendapatan - $totalHpp;
         $labaBersih = $labaKotor - $totalBebanOperasional;
 
-        // ── Tren 6 bulan terakhir ──────────────────────
-        $trenLabels     = [];
-        $trenPendapatan = [];
-        $trenBeban      = [];
-        $trenLaba       = [];
-
-        for ($i = 5; $i >= 0; $i--) {
-            $tgl   = Carbon::parse($bulan . '-01')->subMonths($i);
-            $y     = $tgl->year;
-            $m     = $tgl->month;
-
-            $trenLabels[] = $tgl->translatedFormat('M Y');
-
-            $p = JurnalDetail::where('posisi', 'kredit')
-                ->whereHas('jurnal', fn($q) => $q->whereYear('tanggal', $y)->whereMonth('tanggal', $m))
-                ->whereHas('coa', fn($q) => $q->where('kategori', 'pendapatan'))
-                ->sum('jumlah');
-
-            $b = JurnalDetail::where('posisi', 'debit')
-                ->whereHas('jurnal', fn($q) => $q->whereYear('tanggal', $y)->whereMonth('tanggal', $m))
-                ->whereHas('coa', fn($q) => $q->where('kategori', 'beban'))
-                ->sum('jumlah');
-
-            $trenPendapatan[] = $p;
-            $trenBeban[]      = $b;
-            $trenLaba[]       = $p - $b;
-        }
-
-        $tren = [
-            'labels'     => $trenLabels,
-            'pendapatan' => $trenPendapatan,
-            'beban'      => $trenBeban,
-            'laba'       => $trenLaba,
-        ];
-
-        // ── Pie chart data ─────────────────────────────
-        $pieData = [
-            'pendapatan' => [
-                'labels' => $pendapatan->where('total', '>', 0)->pluck('nama_akun')->values()->toArray(),
-                'values' => $pendapatan->where('total', '>', 0)->pluck('total')->values()->toArray(),
-            ],
-            'beban' => [
-                'labels' => $bebanOperasional->where('total', '>', 0)->pluck('nama_akun')->values()->toArray(),
-                'values' => $bebanOperasional->where('total', '>', 0)->pluck('total')->values()->toArray(),
-            ],
-        ];
-
         return view('laporan-laba-rugi.index', compact(
             'pendapatan', 'hpp', 'bebanOperasional',
-            'totalPendapatan', 'totalHpp', 'totalBebanOperasional', 'totalBeban',
+            'totalPendapatan', 'totalHpp', 'totalBebanOperasional',
             'labaKotor', 'labaBersih',
-            'bulan', 'tren', 'pieData'
+            'bulan'
         ));
     }
 }
