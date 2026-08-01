@@ -187,108 +187,17 @@ class JurnalService
         ]);
     }
 
-    // Dipanggil SEKALI saat setup awal pembukuan (fitur Saldo Awal): kas awal
-    // + persediaan BBM awal per tangki digabung jadi SATU jurnal, dengan
-    // baris debit dinamis (satu per tangki yang stok_awal & harga_awal-nya
-    // terisi, kas awal ikut jadi baris debit kalau > 0) dan SATU baris
-    // kredit Modal Pemilik senilai total semua debit di atas.
-    //
-    // $tangkiData: array of ['tangki' => TangkiBbm, 'stok_awal' => int, 'harga_awal' => int].
-    // Baris tangki dilewati (tidak jadi baris jurnal) kalau stok_awal atau
-    // harga_awal-nya 0/kosong, atau jenis BBM tangki itu belum punya akun
-    // persediaan terdaftar (coa_persediaan_id) - konsisten dengan pola
-    // silent-skip di dariPembelian()/dariPenjualan(), supaya satu tangki yang
-    // belum lengkap datanya tidak memblokir baris tangki lain yang valid.
-    public static function dariSaldoAwal(string $tanggal, int $kasAwal, array $tangkiData): JurnalUmum
-    {
-        $akunKas = Coa::where('kode_akun', '1101')->value('id');
-        $akunModal = Coa::where('kode_akun', '3101')->value('id');
-
-        if (! $akunKas || ! $akunModal) {
-            throw new \RuntimeException(
-                'Akun COA untuk saldo awal tidak lengkap (butuh 1101 Kas & 3101 Modal Pemilik). Saldo awal tidak bisa dicatat.'
-            );
-        }
-
-        // Kumpulkan dulu baris-baris debit yang valid (termasuk hitung total)
-        // SEBELUM membuat header jurnal - supaya kalau ternyata tidak ada
-        // satupun nilai untuk dicatat, kita bisa gagal lebih awal tanpa
-        // meninggalkan header jurnal kosong tak terpakai.
-        $baris = [];
-
-        if ($kasAwal > 0) {
-            $baris[] = [
-                'coa_id' => $akunKas,
-                'jumlah' => $kasAwal,
-                'keterangan' => 'Kas awal pembukuan',
-            ];
-        }
-
-        foreach ($tangkiData as $row) {
-            $stokAwal = (int) $row['stok_awal'];
-            $hargaAwal = (int) $row['harga_awal'];
-
-            if ($stokAwal <= 0 || $hargaAwal <= 0) {
-                continue;
-            }
-
-            $tangki = $row['tangki'];
-            $akunPersediaan = $tangki->masterBbm?->coa_persediaan_id;
-
-            if (! $akunPersediaan) {
-                continue;
-            }
-
-            $baris[] = [
-                'coa_id' => $akunPersediaan,
-                'jumlah' => $stokAwal * $hargaAwal,
-                'keterangan' => 'Persediaan awal '.($tangki->masterBbm->jenis_bbm ?? '').' - '.$tangki->nama_tangki,
-            ];
-        }
-
-        $totalDebit = array_sum(array_column($baris, 'jumlah'));
-
-        if ($totalDebit <= 0) {
-            throw new \RuntimeException('Tidak ada nilai saldo awal untuk dicatat (kas awal & seluruh persediaan tangki kosong).');
-        }
-
-        $jurnal = JurnalUmum::create([
-            'nomor_jurnal' => JurnalUmum::generateNomor($tanggal),
-            'tanggal' => $tanggal,
-            'keterangan' => 'Saldo awal pembukuan (modal awal pemilik)',
-            'sumber' => 'saldo_awal',
-            'referensi_id' => null,
-            'dibuat_oleh' => auth()->id(),
-        ]);
-
-        foreach ($baris as $b) {
-            JurnalDetail::create([
-                'jurnal_id' => $jurnal->id,
-                'coa_id' => $b['coa_id'],
-                'posisi' => 'debit',
-                'jumlah' => $b['jumlah'],
-                'keterangan' => $b['keterangan'],
-            ]);
-        }
-
-        JurnalDetail::create([
-            'jurnal_id' => $jurnal->id,
-            'coa_id' => $akunModal,
-            'posisi' => 'kredit',
-            'jumlah' => $totalDebit,
-            'keterangan' => 'Modal awal pemilik',
-        ]);
-
-        return $jurnal;
-    }
-
-    // Dipanggil saat akun COA baru (kategori aset/kewajiban/modal) diberi Saldo
-    // Awal statis lewat form Tambah Akun COA (lihat CoaController::store()).
-    // BEDA dari dariSaldoAwal() (Kas+Persediaan, sumber 'saldo_awal', one-time
-    // lock) - method ini pakai sumber 'saldo_awal_akun' SUPAYA proteksi
-    // one-time-lock milik halaman Saldo Awal lama tidak ikut memblokir fitur
-    // ini; boleh dipakai berkali-kali untuk akun berbeda-beda. Tanggal jurnal
-    // selalu now() (tidak ada input tanggal manual, sesuai keputusan).
+    // Dipanggil saat akun COA baru/lama (kategori aset/kewajiban/modal) diberi
+    // Saldo Awal statis lewat form Tambah/Edit Akun COA (lihat
+    // CoaController::store()/update()) - termasuk akun Persediaan BBM
+    // (1104-1/2/3), yang nominalnya dihitung dari volume x harga per liter
+    // sebelum method ini dipanggil. Sumber 'saldo_awal_akun' dipakai (bukan
+    // 'saldo_awal' - mekanisme lama satu jurnal gabungan Kas+3 tangki
+    // sekaligus, sudah dihapus bersama halaman Saldo Awal) supaya tiap akun
+    // independen: boleh dipakai berkali-kali untuk akun berbeda-beda, dan
+    // proteksi dobel-input dicek per akun di CoaController, bukan one-time
+    // lock global. Tanggal jurnal selalu now() (tidak ada input tanggal
+    // manual, sesuai keputusan).
     public static function dariSaldoAwalAkun(Coa $akunBaru): JurnalUmum
     {
         $akunModal = Coa::where('kode_akun', '3101')->value('id');

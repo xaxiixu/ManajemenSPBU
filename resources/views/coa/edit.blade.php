@@ -75,6 +75,72 @@
                         <input type="text" name="deskripsi" class="form-control"
                             value="{{ old('deskripsi', $coa->deskripsi) }}">
                     </div>
+                    <div class="mb-4" id="saldoAwalGroup" style="display:none;">
+                        @if($saldoAwal['tangki'])
+                            {{-- Akun Persediaan BBM: volume + harga per liter, bukan nominal langsung --}}
+                            <label class="form-label fw-semibold d-block">Saldo Awal Persediaan</label>
+                            @if($saldoAwal['sudah_ada'])
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <label class="form-label small">Volume Awal (Liter)</label>
+                                    <input type="text" class="form-control bg-light"
+                                        value="{{ number_format($saldoAwal['tangki']->stok_liter, 0, ',', '.') }}" readonly disabled tabindex="-1">
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label small">Harga per Liter (Rp)</label>
+                                    <input type="text" class="form-control bg-light"
+                                        value="{{ number_format($saldoAwal['tangki']->harga_pokok_rata2, 0, ',', '.') }}" readonly disabled tabindex="-1">
+                                </div>
+                            </div>
+                            <small class="text-muted d-block mt-1">Sudah diisi pada {{ $saldoAwal['tanggal'] }}, tidak bisa diubah lewat form ini.</small>
+                            @else
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <label class="form-label small">Volume Awal (Liter)</label>
+                                    <input type="number" name="volume_awal" class="form-control" min="0"
+                                        value="{{ old('volume_awal') }}">
+                                    @error('volume_awal')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label small">Harga per Liter (Rp)</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">Rp</span>
+                                        <input type="text" id="hargaAwalDisplay" class="form-control"
+                                            placeholder="cth: 9.200"
+                                            value="{{ old('harga_awal') ? number_format(old('harga_awal'), 0, ',', '.') : '' }}"
+                                            autocomplete="off">
+                                        <input type="hidden" name="harga_awal" id="hargaAwalValue" value="{{ old('harga_awal', 0) }}">
+                                    </div>
+                                    @error('harga_awal')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
+                                </div>
+                            </div>
+                            <small class="text-muted d-block mt-1">Volume &amp; harga pokok awal tangki ini (statis, historis). Kosongkan kalau belum ada stok fisik — akan otomatis membuat 1 jurnal penyeimbang ke akun Modal Pemilik (3101) dan mengisi stok + HPP awal tangki.</small>
+                            @error('saldo_awal')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
+                            @endif
+                        @else
+                            {{-- Akun neraca biasa (mis. Kas): saldo awal nominal langsung --}}
+                            <label class="form-label fw-semibold">Saldo Awal (Rp) <span class="text-muted fw-normal">(opsional)</span></label>
+                            @if($saldoAwal['sudah_ada'])
+                            <div class="input-group">
+                                <span class="input-group-text">Rp</span>
+                                <input type="text" class="form-control bg-light"
+                                    value="{{ number_format($saldoAwal['nominal'], 0, ',', '.') }}" readonly disabled tabindex="-1">
+                            </div>
+                            <small class="text-muted">Sudah diisi pada {{ $saldoAwal['tanggal'] }}, tidak bisa diubah lewat form ini.</small>
+                            @else
+                            <div class="input-group">
+                                <span class="input-group-text">Rp</span>
+                                <input type="text" id="saldoAwalDisplay" class="form-control"
+                                    placeholder="cth: 5.000.000"
+                                    value="{{ old('saldo_awal') ? number_format(old('saldo_awal'), 0, ',', '.') : '' }}"
+                                    autocomplete="off">
+                                <input type="hidden" name="saldo_awal" id="saldoAwalValue" value="{{ old('saldo_awal', 0) }}">
+                            </div>
+                            <small class="text-muted">Saldo saat akun ini dibuat (statis, historis). Kosongkan/0 kalau akun mulai dari saldo 0 — akan otomatis membuat 1 jurnal penyeimbang ke akun Modal Pemilik (3101).</small>
+                            @error('saldo_awal')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
+                            @endif
+                        @endif
+                    </div>
                     <div class="mb-4">
                         <label class="form-label fw-semibold">Status</label>
                         <select name="is_aktif" class="form-select" required>
@@ -134,6 +200,32 @@ document.addEventListener('DOMContentLoaded', function () {
     const previewKategori = document.getElementById('previewKategori');
     const previewPosisi   = document.getElementById('previewPosisi');
 
+    // Saldo Awal hanya relevan untuk akun neraca (aset/kewajiban/modal) -
+    // sama seperti coa/create.blade.php. Field-field di dalamnya (nominal
+    // biasa, atau volume+harga utk akun Persediaan BBM) bisa saja sudah
+    // readonly/disabled dari server kalau akun ini sudah punya saldo awal -
+    // JS di sini cuma urus show/hide grup, bukan isi field.
+    const KATEGORI_BOLEH_SALDO_AWAL = ['aset', 'kewajiban', 'modal'];
+    const saldoAwalGroupEl = document.getElementById('saldoAwalGroup');
+
+    function updateSaldoAwalVisibility() {
+        const parent = selectedParent();
+        const kategoriEfektif = parent ? parent.kategori : kategoriEl.value;
+        saldoAwalGroupEl.style.display = KATEGORI_BOLEH_SALDO_AWAL.includes(kategoriEfektif) ? '' : 'none';
+    }
+
+    function pasangFormatRupiah(display, hidden) {
+        if (!display || !hidden) return;
+        display.addEventListener('input', function () {
+            let raw = this.value.replace(/\D/g, '');
+            this.value = raw.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            hidden.value = raw || 0;
+        });
+    }
+
+    pasangFormatRupiah(document.getElementById('saldoAwalDisplay'), document.getElementById('saldoAwalValue'));
+    pasangFormatRupiah(document.getElementById('hargaAwalDisplay'), document.getElementById('hargaAwalValue'));
+
     function selectedParent() {
         const opt = parentEl.options[parentEl.selectedIndex];
         return opt && opt.value ? { kode: opt.dataset.kode, kategori: opt.dataset.kategori } : null;
@@ -181,11 +273,13 @@ document.addEventListener('DOMContentLoaded', function () {
     parentEl.addEventListener('change', function () {
         applyState();
         updatePreview();
+        updateSaldoAwalVisibility();
     });
 
     kategoriEl.addEventListener('change', function () {
         applyState();
         updatePreview();
+        updateSaldoAwalVisibility();
     });
 
     kodeSuffixEl.addEventListener('input', function () {
@@ -197,6 +291,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     applyState();
     updatePreview();
+    updateSaldoAwalVisibility();
 });
 </script>
 @endpush

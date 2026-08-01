@@ -22,7 +22,6 @@ use App\Http\Controllers\ApprovalController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PengaturanGajiController;
 use App\Http\Controllers\PayrollController;
-use App\Http\Controllers\SaldoAwalController;
 
 // ── Auth ─────────────────────────────────────────────
 Route::middleware('guest')->group(function () {
@@ -163,11 +162,6 @@ Route::middleware('auth')->group(function () {
         Route::get('/users/{user}/edit', [UserController::class, 'edit'])->name('users.edit');
         Route::put('/users/{user}', [UserController::class, 'update'])->name('users.update');
         Route::delete('/users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
-
-        // Saldo Awal: one-time setup modal awal pembukuan (kas + persediaan awal)
-        Route::get('/saldo-awal', [SaldoAwalController::class, 'index'])->name('saldo-awal.index');
-        Route::get('/saldo-awal/create', [SaldoAwalController::class, 'create'])->name('saldo-awal.create');
-        Route::post('/saldo-awal', [SaldoAwalController::class, 'store'])->name('saldo-awal.store');
     });
 
     // ── Manager: Payroll (pengaturan gaji + penggajian) ───

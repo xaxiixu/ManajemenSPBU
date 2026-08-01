@@ -522,12 +522,6 @@
                 <i class="bi bi-people-fill"></i> Manajemen User
             </a>
         </div>
-        <div class="nav-item">
-            <a href="{{ route('saldo-awal.index') }}"
-                class="{{ request()->routeIs('saldo-awal.*') ? 'active' : '' }}">
-                <i class="bi bi-piggy-bank-fill"></i> Saldo Awal
-            </a>
-        </div>
         @endif
 
     </div>
