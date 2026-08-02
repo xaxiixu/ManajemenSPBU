@@ -125,7 +125,12 @@
                 </thead>
                 <tbody>
                     @forelse($data as $item)
-                        @php $rowspan = $item->details->count() + 1; @endphp
+                        @php
+                            $rowspan = $item->details->count();
+                            $bulanKey = $item->tanggal->format('Y-m');
+                            $nextItem = $data[$loop->index + 1] ?? null;
+                            $isLastOfMonth = !$nextItem || $nextItem->tanggal->format('Y-m') !== $bulanKey;
+                        @endphp
                         @foreach($item->details as $detail)
                         <tr @if($loop->first) id="jurnal-{{ $item->id }}" @endif
                             class="{{ $loop->parent->index % 2 == 0 ? 'jurnal-group-even' : 'jurnal-group-odd' }}">
@@ -161,11 +166,15 @@
                             </td>
                         </tr>
                         @endforeach
-                        <tr class="jurnal-group-end {{ $loop->index % 2 == 0 ? 'jurnal-group-even' : 'jurnal-group-odd' }}">
-                            <td colspan="2" class="text-end fw-semibold text-muted small">Total Jurnal</td>
-                            <td class="text-end fw-semibold text-success">{{ number_format($item->total_debit) }}</td>
-                            <td class="text-end fw-semibold text-danger">{{ number_format($item->total_kredit) }}</td>
+                        @if($isLastOfMonth)
+                        <tr class="jurnal-month-total">
+                            <td colspan="3" class="text-end fw-semibold text-muted">
+                                Total Bulan {{ $item->tanggal->clone()->locale('id')->translatedFormat('F Y') }}
+                            </td>
+                            <td class="text-end fw-semibold text-success">{{ number_format($totalPerBulan[$bulanKey]['debit'] ?? 0) }}</td>
+                            <td class="text-end fw-semibold text-danger">{{ number_format($totalPerBulan[$bulanKey]['kredit'] ?? 0) }}</td>
                         </tr>
+                        @endif
                     @empty
                     <tr>
                         <td colspan="5" class="text-center py-4 text-muted">
@@ -189,7 +198,7 @@
 <style>
     .jurnal-group-odd { background-color: #ffffff; }
     .jurnal-group-even { background-color: #f8f9fa; }
-    .jurnal-group-end td { border-bottom: 3px solid #adb5bd; }
+    .jurnal-month-total td { border-bottom: 3px solid #adb5bd; background-color: #eef1f4; }
 </style>
 @endpush
 @endsection

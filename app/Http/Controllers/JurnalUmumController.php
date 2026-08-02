@@ -26,7 +26,7 @@ class JurnalUmumController extends Controller
             ->when($sumber, fn ($query) => $query->where('sumber', $sumber))
             ->latest('tanggal')
             ->orderByDesc('id')
-            ->paginate(20)
+            ->paginate(100000)
             ->withQueryString();
 
         $totals = JurnalDetail::join('jurnal_umum', 'jurnal_umum.id', '=', 'jurnal_detail.jurnal_id')
@@ -40,6 +40,19 @@ class JurnalUmumController extends Controller
         $totalKredit = (float) ($totals->total_kredit ?? 0);
         $selisih     = $totalDebit - $totalKredit;
 
+        $totalPerBulan = JurnalDetail::join('jurnal_umum', 'jurnal_umum.id', '=', 'jurnal_detail.jurnal_id')
+            ->whereBetween('jurnal_umum.tanggal', [$dari, $sampai])
+            ->when($sumber, fn ($query) => $query->where('jurnal_umum.sumber', $sumber))
+            ->select('jurnal_umum.tanggal', 'jurnal_detail.posisi', 'jurnal_detail.jumlah')
+            ->get()
+            ->groupBy(fn ($row) => \Carbon\Carbon::parse($row->tanggal)->format('Y-m'))
+            ->map(function ($rows) {
+                return [
+                    'debit'  => (float) $rows->where('posisi', 'debit')->sum('jumlah'),
+                    'kredit' => (float) $rows->where('posisi', 'kredit')->sum('jumlah'),
+                ];
+            });
+
         $sumberOptions = [
             'penjualan_bbm' => 'Penjualan BBM',
             'pengeluaran'   => 'Pengeluaran',
@@ -48,6 +61,6 @@ class JurnalUmumController extends Controller
             'saldo_awal'    => 'Saldo Awal',
         ];
 
-        return view('jurnal-umum.index', compact('data', 'dari', 'sampai', 'bulan', 'sumber', 'sumberOptions', 'totalDebit', 'totalKredit', 'selisih'));
+        return view('jurnal-umum.index', compact('data', 'dari', 'sampai', 'bulan', 'sumber', 'sumberOptions', 'totalDebit', 'totalKredit', 'selisih', 'totalPerBulan'));
     }
 }
